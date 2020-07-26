@@ -1,3 +1,32 @@
+VfyPwd
+
+header
+    0  0xEF
+    1  0x01
+ADDER
+    2  0xFF
+    3  0xFF
+    4  0xFF
+    5  0xFF
+PID
+    6  0x01
+LENGTH
+    7  0x00
+    8  0x07
+DATA
+    Instruction Code
+    9  0x13
+    Password
+    10 0x00
+    11 0x00
+    12 0x00
+    13 0x00
+SUM
+    14 0x00
+    15 0x1B 
+
+sum = 0x01+0x07+0x13=0x1B
+
 # UART Echo Example
 
 (See the README.md file in the upper level 'examples' directory for more information about examples.)
