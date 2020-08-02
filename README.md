@@ -1,92 +1,91 @@
 VfyPwd
+Command
+    header
+        0  0xEF
+        1  0x01
+    ADDER
+        2  0xFF
+        3  0xFF
+        4  0xFF
+        5  0xFF
+    PID
+        6  0x01
+    LENGTH
+        7  0x00
+        8  0x07
+    DATA
+        Instruction Code
+        9  0x13
+        Password
+        10 0x00
+        11 0x00
+        12 0x00
+        13 0x00
+    SUM
+        14 0x00
+        15 0x1B 
 
-header
-    0  0xEF
-    1  0x01
-ADDER
-    2  0xFF
-    3  0xFF
-    4  0xFF
-    5  0xFF
-PID
-    6  0x01
-LENGTH
-    7  0x00
-    8  0x07
-DATA
-    Instruction Code
-    9  0x13
-    Password
-    10 0x00
-    11 0x00
-    12 0x00
-    13 0x00
-SUM
-    14 0x00
-    15 0x1B 
+    sum = 0x01+0x07+0x13=0x1B
 
-sum = 0x01+0x07+0x13=0x1B
+Response
+    Header
+        0 0xEF
+        1 0x01
+    ADDER
+        2 0xFF
+        3 0xFF
+        4 0xFF
+        5 0xFF
+    PID
+        6 0x07
+    LENGTH
+        7 0x00
+        8 0x03
+    DATA
+        Confirmation Code
+        9 0x00
+    SUM
+        10 0x00
+        11 0x0A
 
-# UART Echo Example
+    sum = 0x07 + 0x03 = 0x0A
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+Development questions
+    UART
+        esp32 uart buffer size? How often should I read from uart?
+        If I receive multiple responses, will I get all of them when I read
+        from uart? When do I begin losing responses?
 
-This example demonstrates how to utilize UART interfaces of ESP32 by echoing back to the sender any data received on
-UART1.
+        How long does it take to respond? avg, max
 
-## How to use example
 
-### Hardware Required
+Research
+    If you send consecutive packets too quickly, it just won't respond to the 
+    second packet
 
-The example can be run on any ESP32 development board connected to a PC with a single USB cable for flashing and
-monitoring. The external interface should have 3.3V outputs. You may use e.g. 3.3V compatible USB-to-Serial dongle.
 
-### Setup the Hardware
+-------------------------
+Tests
 
-Connect the external serial interface to the ESP32 board as follows.
+A component called R502, which has a number of associated tests
+    Test simple response for a basic command
+    Test sending multiple responses at a certain timeframe
+    Test receiving data from multiple command responses at once
+    Test fingerprint data retrevial and a bunch of other things
 
-  | ESP32 Interface | #define | ESP32 Pin | External UART Pin |
-  | --- | --- | --- | --- |
-  | Transmit Data (TxD) | ECHO_TEST_TXD | GPIO4 | RxD |
-  | Receive Data (RxD) | ECHO_TEST_RXD | GPIO5 | TxD |
-  | Ground | n/a | GND | GND |
+For BWL
+    Write tests for all the components I've written
+        Wifi-manager
+        ota-manager
 
-Optionally, you can set-up and use a serial interface that has RTS and CTS signals in order to verify that the
-hardware control flow works. Connect the extra signals according to the following table, configure both extra pins in
-the example code by replacing existing `UART_PIN_NO_CHANGE` macros with the appropriate pin numbers and configure
-UART1 driver to use the hardware flow control by setting `.flow_ctrl = UART_HW_FLOWCTRL_CTS_RTS` and adding
-`.rx_flow_ctrl_thresh = 122`.
+What about tests for an actual product, not a specific component?
+    Like tests for the bulbs
+    Or tests for crmx?
+        crmx would be moved into a component
 
-  | ESP32 Interface | #define | ESP32 Pin | External UART Pin |
-  | --- | --- | --- | --- |
-  | Request to Send (RTS) | ECHO_TEST_RTS | GPIO18 | CTS |
-  | Clear to Send (CTS) | ECHO_TEST_CTS | GPIO19 | RTS |
+    I guess they want me to develop with lots of components
 
-### Configure the project
 
-```
-idf.py menuconfig
-```
-
-### Build and Flash
-
-Build the project and flash it to the board, then run monitor tool to view serial output:
-
-```
-idf.py -p PORT flash monitor
-```
-
-(To exit the serial monitor, type ``Ctrl-]``.)
-
-See the Getting Started Guide for full steps to configure and use ESP-IDF to build projects.
-
-## Example Output
-
-Type some characters in the terminal connected to the external serial interface. As result you should see echo in the
-terminal which is used for flashing and monitoring. You can verify if the echo indeed comes from ESP32 by
-disconnecting either `TxD` or `RxD` pin: no characters will appear when typing.
-
-## Troubleshooting
-
-You are not supposed to see the echo in the terminal which is used for flashing and monitoring, but in the other one
-which is connected to UART1.
+Seperate this into a component
+Create a new higher level project that acts as a tester for the component
+    That will literally just run it, and then execute the tests
