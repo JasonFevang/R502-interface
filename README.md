@@ -2,6 +2,8 @@
 The R502 is a fingerprint identification module, developed by GROW Technology.
 The offical documentation can be downloaded here: https://www.dropbox.com/sh/epucei8lmoz7xpp/AAAmon04b1DiSOeh1q4nAhzAa?dl=0
 
+It is also in the docs/ directory
+
 This is an **ESP-IDF** component developed for the **esp32** to interface with the R502 module via UART
 
 ## Documentation
