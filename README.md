@@ -55,6 +55,8 @@ Development questions
         esp32 uart buffer size? How often should I read from uart?
         If I receive multiple responses, will I get all of them when I read
         from uart? When do I begin losing responses?
+        Should I wait for the response after every sent command?
+            Simplest, yes. I don't think it will damage performance
 
         How long does it take to respond? avg, max
 
