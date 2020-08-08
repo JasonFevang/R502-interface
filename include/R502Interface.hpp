@@ -18,9 +18,16 @@ public:
     esp_err_t deinit();
 
     esp_err_t vfyPass(const std::array<uint8_t, 4> &pass, R502_conf_code_t &res);
-    void test1();
 private:
     static const char *TAG;
+
+    void set_headers(R502_DataPackage_t &package, R502_pid_t pid, uint16_t length);
+    void fill_checksum(R502_DataPackage_t &package);
+    bool verify_checksum(const R502_DataPackage_t &package);
+    //esp_err_t sendPackage(R502_DataPackage_t &package, R502_DataPackage_t &receivePackage);
+    esp_err_t sendCommandPackage(const R502_DataPackage_t &package, R502_DataPackage_t &receivePackage);
+    uint16_t conv_8_to_16(const uint8_t in[2]);
+
     void busy_delay(int64_t microseconds);
     static void IRAM_ATTR irq_intr(void *arg);
 
@@ -34,4 +41,8 @@ private:
 
     uart_port_t uart_num;
     int interrupt = 0;
+
+    const uint8_t start[2] = {0xEF, 0x01};
+    uint8_t adder[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+    const int read_delay = 20; //ms
 };
