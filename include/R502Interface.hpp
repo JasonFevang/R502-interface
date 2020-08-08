@@ -14,8 +14,8 @@
 
 class R502Interface {
 public:
-    void init(uart_port_t _uart_num, gpio_num_t _pin_txd, gpio_num_t _pin_rxd, gpio_num_t _pin_irq);
-    void deinit();
+    esp_err_t init(uart_port_t _uart_num, gpio_num_t _pin_txd, gpio_num_t _pin_rxd, gpio_num_t _pin_irq);
+    esp_err_t deinit();
 
     esp_err_t vfyPass(const std::array<uint8_t, 4> &pass, R502_conf_code_t &res);
     void test1();

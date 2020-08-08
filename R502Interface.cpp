@@ -2,7 +2,7 @@
 
 const char *R502Interface::TAG = "R502";
 
-void R502Interface::init(uart_port_t _uart_num, gpio_num_t _pin_txd, gpio_num_t _pin_rxd, gpio_num_t _pin_irq){
+esp_err_t R502Interface::init(uart_port_t _uart_num, gpio_num_t _pin_txd, gpio_num_t _pin_rxd, gpio_num_t _pin_irq){
     pin_txd = _pin_txd;
     pin_rxd = _pin_rxd;
     pin_irq = _pin_irq;
@@ -21,22 +21,36 @@ void R502Interface::init(uart_port_t _uart_num, gpio_num_t _pin_txd, gpio_num_t 
         .rx_flow_ctrl_thresh = 0,
         .use_ref_tick = false
     };
-    uart_param_config(uart_num, &uart_config);
-    uart_set_pin(uart_num, pin_txd, pin_rxd, pin_rts, pin_cts);
-    uart_driver_install(uart_num, BUF_SIZE * 2, 0, 0, NULL, 0);
+    esp_err_t err = uart_param_config(uart_num, &uart_config);
+    if(err) return err;
+    err = uart_set_pin(uart_num, pin_txd, pin_rxd, pin_rts, pin_cts);
+    if(err) return err;
+    err = uart_driver_install(uart_num, BUF_SIZE * 2, 0, 0, NULL, 0);
+    if(err) return err;
 
-    gpio_set_direction(pin_irq, GPIO_MODE_INPUT);
-    gpio_set_intr_type(pin_irq, GPIO_INTR_POSEDGE);
-    gpio_intr_enable(pin_irq);
-    gpio_install_isr_service(0);
-    gpio_isr_handler_add(pin_irq, irq_intr, this);
+    err = gpio_set_direction(pin_irq, GPIO_MODE_INPUT);
+    if(err) return err;
+    err = gpio_set_intr_type(pin_irq, GPIO_INTR_POSEDGE);
+    if(err) return err;
+    err = gpio_intr_enable(pin_irq);
+    if(err) return err;
+    err = gpio_install_isr_service(0);
+    if(err) return err;
+    err = gpio_isr_handler_add(pin_irq, irq_intr, this);
+    if(err) return err;
 
     // wait for R502 to prepare itself
     vTaskDelay(200 / portTICK_PERIOD_MS);
+    return ESP_OK;
 }
 
-void R502Interface::deinit(){
-    uart_driver_delete(uart_num);
+esp_err_t R502Interface::deinit(){
+    esp_err_t err = uart_driver_delete(uart_num);
+    if(err) return err;
+    err = gpio_isr_handler_remove(pin_irq);
+    if(err) return err;
+    gpio_uninstall_isr_service();
+    return ESP_OK;
 }
 
 void IRAM_ATTR R502Interface::irq_intr(void *arg){
