@@ -1,56 +1,31 @@
-VfyPwd
-Command
-    header
-        0  0xEF
-        1  0x01
-    ADDER
-        2  0xFF
-        3  0xFF
-        4  0xFF
-        5  0xFF
-    PID
-        6  0x01
-    LENGTH
-        7  0x00
-        8  0x07
-    DATA
-        Instruction Code
-        9  0x13
-        Password
-        10 0x00
-        11 0x00
-        12 0x00
-        13 0x00
-    SUM
-        14 0x00
-        15 0x1B 
+# ESP32 R502-Interface
+The R502 is a fingerprint identification module, developed by GROW Technology.
+The offical documentation can be downloaded here: https://www.dropbox.com/sh/epucei8lmoz7xpp/AAAmon04b1DiSOeh1q4nAhzAa?dl=0
 
-    sum = 0x01+0x07+0x13=0x1B
+This is an **ESP-IDF** component developed for the **esp32** to interface with the R502 module via UART
 
-Response
-    Header
-        0 0xEF
-        1 0x01
-    ADDER
-        2 0xFF
-        3 0xFF
-        4 0xFF
-        5 0xFF
-    PID
-        6 0x07
-    LENGTH
-        7 0x00
-        8 0x03
-    DATA
-        Confirmation Code
-        9 0x00
-    SUM
-        10 0x00
-        11 0x0A
+## Documentation
+The project is fully documented using Doxygen
+doxygen.conf is the Doxygen configuration file for the project
+Run `doxygen doxygen.conf` in the root directory to build the html/ directory, then open `html/index.html` in your browser of choice to see the documentation for the project
 
-    sum = 0x07 + 0x03 = 0x0A
+## Code Style
+The source code is developed following the ESP-IDF Development Framework Style Guide: https://docs.espressif.com/projects/esp-idf/en/latest/esp32/contribute/style-guide.html#espressif-iot-development-framework-style-guide
 
-Development questions
+## Unit Tests
+The `tests/` directory contains all unit tests for the project, using the Unity test framework provided by ESP-IDF. For examples on how to run the tests see the ESP-IDF unit test sample code: https://github.com/espressif/esp-idf/tree/master/examples/system/unit_test
+
+## How to Use
+* Create an instance of the R502Interface class
+* Call init on the object to initialize UART hardware
+* Send commands to the module using the R502 interface
+
+## Contribute
+Contact me over GitHub if you want to contribute to the project
+
+-------------------------
+
+## Development questions
     UART
         esp32 uart buffer size? How often should I read from uart?
         If I receive multiple responses, will I get all of them when I read
@@ -66,7 +41,6 @@ Research
     second packet
 
 
--------------------------
 Tests
 
 A component called R502, which has a number of associated tests

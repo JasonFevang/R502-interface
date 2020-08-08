@@ -1,7 +1,16 @@
+/**
+ * \file R502Definitions.hpp
+ * \brief Defines data types and enums to faciliate communication with the R502 
+ * module
+ */
+
 #pragma once
 #include <stdint.h>
 
 
+/**
+ * \brief Package identifiers
+ */
 typedef enum {
     R502_pid_command = 0x01,
     R502_pid_data = 0x02,
@@ -9,6 +18,9 @@ typedef enum {
     R502_pid_end_of_data = 0x08
 } R502_pid_t;
 
+/**
+ * \brief Instruction codes sent with each command
+ */
 typedef enum {
     R502_ic_gen_img = 0x1,
     R502_ic_img_2_tz = 0x2,
@@ -36,6 +48,9 @@ typedef enum {
     R502_ic_led_config = 0x35
 } R502_instr_code_t;
 
+/**
+ * \brief Confirmation codes returned by the R502 module in acknowledge packages
+ */
 typedef enum {
     R502_fail = -1,
     R502_ok = 0x0,
@@ -64,31 +79,45 @@ typedef enum {
     R502_err_comm_port = 0x1D,
 } R502_conf_code_t;
 
+/**
+ * \brief Data section of the VfyPwd command
+ */
 struct R502_VfyPwd_t {
-    uint8_t instr_code;
-    uint8_t password[4];
-    uint8_t checksum[2];
+    uint8_t instr_code; //!< instruction code
+    uint8_t password[4]; //!< User-provided password
+    uint8_t checksum[2]; //!< checksum
 };
 
+/**
+ * \brief Data section of the SetPwd command
+ */
 struct R502_SetPwd_t {
-    uint8_t instr_code;
-    uint8_t password[4];
-    uint8_t checksum[2];
+    uint8_t instr_code; //!< instruction code
+    uint8_t password[4]; //!< User-provided password
+    uint8_t checksum[2]; //!< checksum
 };
 
+/**
+ * \brief Data section of a general acknowledge package from R502
+ * 
+ * Many commands have this same acknowledge format, reuse this
+ */
 struct R502_Ack_t {
-    uint8_t conf_code;
-    uint8_t checksum[2];
+    uint8_t conf_code; //!< confirmation code
+    uint8_t checksum[2]; //!< checksum
 };
 
+/**
+ * \brief General data structure storing any type of package
+ */
 struct R502_DataPackage_t {
-    uint8_t start[2];
-    uint8_t adder[4];
-    uint8_t pid;
-    uint8_t length[2];
+    uint8_t start[2]; //!< Two byte header, all packages are the same
+    uint8_t adder[4]; //!< Module address, default 0xff, 0xff, 0xff, 0xff
+    uint8_t pid; //!< Package id
+    uint8_t length[2]; //!< length in bytes of data section of this package
     union {
         R502_VfyPwd_t vfy_pwd;
         R502_SetPwd_t set_pwd;
         R502_Ack_t default_ack;
-    } data;
+    } data; //!< Data and checksum of the package
 };
