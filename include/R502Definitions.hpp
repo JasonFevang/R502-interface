@@ -79,6 +79,26 @@ typedef enum {
     R502_err_comm_port = 0x1D,
 } R502_conf_code_t;
 
+struct R502_sys_para_t {
+    uint8_t status_register[2];
+    uint8_t system_identifier_code[2];
+    uint8_t finger_library_size[2];
+    uint8_t security_level[2];
+    uint8_t device_address[4];
+    uint8_t data_packet_size[2];
+    uint8_t baud_setting[2];
+};
+
+struct R502_sys_para_2_t {
+    uint16_t status_register;
+    uint16_t system_identifier_code;
+    uint16_t finger_library_size;
+    uint16_t security_level;
+    uint8_t device_address[4];
+    uint16_t data_packet_size;
+    uint16_t baud_setting;
+};
+
 /**
  * \brief Data section of the VfyPwd command
  */

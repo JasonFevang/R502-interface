@@ -151,6 +151,7 @@ esp_err_t R502Interface::vfy_pass(const std::array<uint8_t, 4> &pass,
     R502_DataPackage_t pkg;
     R502_VfyPwd_t *data = &pkg.data.vfy_pwd;
 
+    // Fill package
     set_headers(pkg, R502_pid_command, sizeof(R502_VfyPwd_t));
     data->instr_code = R502_ic_vfy_pwd;
     for(int i = 0; i < 4; i++){
@@ -158,16 +159,19 @@ esp_err_t R502Interface::vfy_pass(const std::array<uint8_t, 4> &pass,
     }
     fill_checksum(pkg);
 
+    // Send package, get response
     R502_DataPackage_t receive_pkg;
     esp_err_t err = send_command_package(pkg, receive_pkg);
     if(err) return err;
     
+    // Verify response
     if(!verify_checksum(receive_pkg)){
         return ESP_ERR_INVALID_CRC;
     }
     err = verify_headers(receive_pkg, R502_pid_ack, sizeof(R502_Ack_t));
     if(err) return err;
 
+    // Return result
     res = (R502_conf_code_t)receive_pkg.data.default_ack.conf_code;
     return ESP_OK;
 }

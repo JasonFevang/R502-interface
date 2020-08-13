@@ -28,25 +28,35 @@ TEST_CASE("VfyPwd", "[command]")
     esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
     TEST_ESP_OK(err);
     std::array<uint8_t, 4> pass = {0x00, 0x00, 0x00, 0x00};
-    R502_conf_code_t res = R502_fail;
-    err = R502.vfy_pass(pass, res);
+    R502_conf_code_t conf_code = R502_fail;
+    err = R502.vfy_pass(pass, conf_code);
     TEST_ESP_OK(err);
-    TEST_ASSERT_EQUAL(R502_ok, res);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
     pass[3] = 0x01;
-    err = R502.vfy_pass(pass, res);
+    err = R502.vfy_pass(pass, conf_code);
     TEST_ESP_OK(err);
-    TEST_ASSERT_EQUAL(R502_err_wrong_pass, res);
+    TEST_ASSERT_EQUAL(R502_err_wrong_pass, conf_code);
     err = R502.deinit();
     TEST_ESP_OK(err);
 }
 
+TEST_CASE("ReadSysPara", "[command]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+    R502_sys_para_t sys_para;
+    R502_conf_code_t conf_code;
+    err = R502.read_sys_para(conf_code, sys_para);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+}
 TEST_CASE("Not connected", "[system]")
 {
     esp_err_t err = R502.init(UART_NUM_1, PIN_NC_1, PIN_NC_2, PIN_NC_3);
     TEST_ESP_OK(err);
     std::array<uint8_t, 4> pass = {0x00, 0x00, 0x00, 0x00};
-    R502_conf_code_t res = R502_fail;
-    err = R502.vfy_pass(pass, res);
+    R502_conf_code_t conf_code = R502_fail;
+    err = R502.vfy_pass(pass, conf_code);
     TEST_ASSERT_EQUAL(ESP_ERR_NOT_FOUND, err);
 }
 TEST_CASE("Reinitialize", "[system]")
@@ -58,8 +68,8 @@ TEST_CASE("Reinitialize", "[system]")
     err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
     TEST_ESP_OK(err);
     std::array<uint8_t, 4> pass = {0x00, 0x00, 0x00, 0x00};
-    R502_conf_code_t res = R502_fail;
-    err = R502.vfy_pass(pass, res);
+    R502_conf_code_t conf_code = R502_fail;
+    err = R502.vfy_pass(pass, conf_code);
     TEST_ESP_OK(err);
-    TEST_ASSERT_EQUAL(res, R502_ok);
+    TEST_ASSERT_EQUAL(conf_code, R502_ok);
 }
