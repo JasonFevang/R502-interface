@@ -48,10 +48,11 @@ public:
      * \brief Return pointer to 4 byte length module address
      */
     uint8_t *get_module_address();
+
     /**
      * \brief Verify provided password
      * \param pass 4 byte password to verify
-     * \param res confirmation code provided by the R502
+     * \param res OUT confirmation code provided by the R502
      * \retval ESP_OK: successful
      *         ESP_ERR_INVALID_STATE: Error sending or recieving via UART
      *         ESP_ERR_INVALID_SIZE: Not all data was sent out
@@ -64,8 +65,8 @@ public:
 
     /**
      * \brief Read system parameters
-     * \param res confirmation code provided by the R502
-     * \param sys_para data structure to be filled with system parameters
+     * \param res OUT confirmation code provided by the R502
+     * \param sys_para OUT data structure to be filled with system parameters
      * \retval See vfy_pass for description of all possible return values
      */
     esp_err_t read_sys_para(R502_conf_code_t &res, R502_sys_para_t &sys_para);
@@ -83,7 +84,7 @@ private:
     /**
      * \brief Send a command to the module, and read its acknowledgement
      * \param pkg data to send
-     * \param receivePkg package to read response data into
+     * \param receivePkg OUT package to read response data into
      * \retval ESP_OK: successful
      *         ESP_ERR_INVALID_STATE: Error sending or recieving via UART
      *         ESP_ERR_INVALID_SIZE: Not all data was sent out
@@ -127,6 +128,12 @@ private:
 
     static void IRAM_ATTR irq_intr(void *arg);
 
+    // parameters
+    bool initialized = false;
+    uint8_t adder[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+    int interrupt = 0;
+
+    uart_port_t uart_num;
     gpio_num_t pin_txd;
     gpio_num_t pin_rxd;
     gpio_num_t pin_irq;
@@ -135,13 +142,8 @@ private:
     gpio_num_t pin_rts;
     gpio_num_t pin_cts;
 
-    uart_port_t uart_num;
-    int interrupt = 0;
-
-    bool initialized = false;
-
+    // constants
     const uint8_t start[2] = {0xEF, 0x01};
     const uint16_t system_identifier_code = 9;
-    uint8_t adder[4] = {0xFF, 0xFF, 0xFF, 0xFF};
     const int read_delay = 50; //ms
 };
