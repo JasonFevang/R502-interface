@@ -61,6 +61,9 @@ esp_err_t R502Interface::deinit()
         gpio_uninstall_isr_service();
         if(err_uart_driver) return err_uart_driver;
         if(err_isr_remove) return err_isr_remove;
+
+        // reset up_image_cb
+        up_image_cb = nullptr;
     }
     return ESP_OK;
 }
@@ -156,7 +159,7 @@ esp_err_t R502Interface::template_num(R502_conf_code_t &res,
     R502_DataPkg_t receive_pkg;
     R502_TemplateNumAck_t *receive_data = &receive_pkg.data.template_num_ack;
     esp_err_t err = send_command_package(pkg, receive_pkg, 
-        sizeof(R502_TemplateNumAck_t));
+        sizeof(*receive_data));
     if(err) return err;
 
     // Return result
@@ -196,6 +199,9 @@ esp_err_t R502Interface::up_image(R502_conf_code_t &res){
         ESP_LOGW(TAG, "up_image callback not set");
         return ESP_ERR_INVALID_STATE;
     }
+    
+    // TODO: Check stored parameters to see if the R502 has an image ready
+    // to send. If not, still perform the transfer, but send a warning
 
     // Fill package
     set_headers(pkg, R502_pid_command, sizeof(R502_GeneralCommand_t));
@@ -209,13 +215,38 @@ esp_err_t R502Interface::up_image(R502_conf_code_t &res){
         sizeof(R502_GeneralAck_t), read_delay_gen_image);
     if(err) return err;
 
-    // receive package
-    // verify it and all that
-    // convert 4bit bytes to 8bit in an expanded buffer
-    // call callback
-
-    // Return result
     res = (R502_conf_code_t)receive_data->conf_code;
+    if(res != R502_ok){ 
+        // The esp side of things is ok, but the module isn't ready to send
+        return ESP_OK;
+    }
+
+    // receive data packages
+    R502_pid_t pid = R502_pid_data;
+    std::array<uint8_t, max_data_len * 2> data_cb_buffer;
+    uint8_t *rec_data = receive_pkg.data.data.content;
+    int bytes_received = 0;
+    while(pid == R502_pid_data){
+        err = receive_package(receive_pkg, 
+            data_package_length+cs_len+header_size);
+        if(err) return err;
+        bytes_received += data_package_length;
+
+        pid = (R502_pid_t)receive_pkg.pid;
+
+        // convert 4bit bytes to 8bit in an expanded buffer
+        for(int i = 0; i < data_package_length; i++){
+            // Low four bytes
+            data_cb_buffer[i*2] = (rec_data[i] & 0xf) << 4;
+            // High four bytes
+            data_cb_buffer[i*2+1] = rec_data[i] & 0xf0;
+        }
+
+        // call callback
+        up_image_cb(data_cb_buffer, data_package_length * 2);
+    }
+    ESP_LOGI(TAG, "bytes received %d", bytes_received);
+
     return ESP_OK;
 }
 
@@ -257,6 +288,8 @@ esp_err_t R502Interface::receive_package(const R502_DataPkg_t &rec_pkg,
 {
     int len = uart_read_bytes(uart_num, (uint8_t *)&rec_pkg, data_length,
         read_delay_ms / portTICK_RATE_MS);
+    
+    //ESP_LOGI(TAG, "received %d bytes", len);
 
     if(len == -1){
         ESP_LOGE(TAG, "uart read error, parameter error");
@@ -282,7 +315,7 @@ esp_err_t R502Interface::receive_package(const R502_DataPkg_t &rec_pkg,
         uart_flush(uart_num);
         return ESP_ERR_INVALID_CRC;
     }
-    esp_err_t err = verify_headers(rec_pkg, R502_pid_ack, len - header_size);
+    esp_err_t err = verify_headers(rec_pkg, len - header_size);
     if(err){
         uart_flush(uart_num);
     }
@@ -324,7 +357,7 @@ bool R502Interface::verify_checksum(const R502_DataPkg_t &package)
 }
 
 esp_err_t R502Interface::verify_headers(const R502_DataPkg_t &pkg, 
-    R502_pid_t pid, uint16_t length)
+    uint16_t length)
 {
     // start
     if(memcmp(pkg.start, start, sizeof(start)) != 0){
@@ -339,8 +372,9 @@ esp_err_t R502Interface::verify_headers(const R502_DataPkg_t &pkg,
     }
 
     // pid
-    if(pkg.pid != pid){
-        ESP_LOGE(TAG, "Response has invalid pid");
+    if(pkg.pid != R502_pid_command && pkg.pid != R502_pid_data && 
+        pkg.pid != R502_pid_ack && pkg.pid != R502_pid_end_of_data){
+        ESP_LOGE(TAG, "Response has invalid pid, %d", pkg.pid);
         return ESP_ERR_INVALID_RESPONSE;
     }
 

@@ -30,10 +30,25 @@ void wait_with_message(char *message){
 }
 
 static int up_image_data_len = 0;
-void up_image_callback(uint8_t *data, int data_len){
+void up_image_callback(std::array<uint8_t, max_data_len * 2> &data, 
+    int data_len)
+{
     // this is where you would store or otherwise do something with the image
     up_image_data_len += data_len;
-    TEST_ASSERT_NOT_NULL(data);
+
+    //int box_width = 16;
+    //int total = 0;
+    //while(total < data_len){
+        //for(int i = 0; i < box_width; i++){
+            //printf("0x%02X ", data[total]);
+            //total++;
+        //}
+        //printf("\n");
+    //}
+    // Check that all bytes have the lower four bytes 0
+    for(int i = 0; i < data_len; i++){
+        TEST_ASSERT_EQUAL(0, data[i] & 0x0f);
+    }
 }
 
 TEST_CASE("Not connected", "[initialization]")
@@ -89,15 +104,15 @@ TEST_CASE("ReadSysPara", "[system command]")
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
     TEST_ASSERT_EQUAL_UINT8_ARRAY(R502.get_module_address(), 
         sys_para.device_address, 4);
-    //printf("status_register %d\n", sys_para.status_register);
-    //printf("system_identifier_code %d\n", sys_para.system_identifier_code);
-    //printf("finger_library_size %d\n", sys_para.finger_library_size);
-    //printf("security_level %d\n", sys_para.security_level);
-    //printf("device_address %x%x%x%x\n", sys_para.device_address[0], 
-        //sys_para.device_address[1], sys_para.device_address[2], 
-        //sys_para.device_address[3]);
-    //printf("data_packet_size %d\n", sys_para.data_packet_size);
-    //printf("baud_setting %d\n", sys_para.baud_setting);
+    printf("status_register %d\n", sys_para.status_register);
+    printf("system_identifier_code %d\n", sys_para.system_identifier_code);
+    printf("finger_library_size %d\n", sys_para.finger_library_size);
+    printf("security_level %d\n", sys_para.security_level);
+    printf("device_address %x%x%x%x\n", sys_para.device_address[0], 
+        sys_para.device_address[1], sys_para.device_address[2], 
+        sys_para.device_address[3]);
+    printf("data_packet_size %d\n", sys_para.data_packet_size);
+    printf("baud_setting %d\n", sys_para.baud_setting);
 }
 
 TEST_CASE("TemplateNum", "[system command]")

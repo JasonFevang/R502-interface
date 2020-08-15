@@ -29,7 +29,8 @@
  */
 class R502Interface {
 public:
-    typedef std::function<void(uint8_t *data, int frame_len)> up_image_cb_t;
+    typedef std::function<void(std::array<uint8_t, max_data_len * 2> &data, 
+        int data_len)> up_image_cb_t;
 
     /**
      * \brief initialize interface, must call first
@@ -159,13 +160,11 @@ private:
     /**
      * \brief Verify the header fields of the package are correct
      * \param pkg package to verify
-     * \param pid Expected package ID
      * \param length Expected value of length field
      * \retval ESP_OK: successful
      *         ESP_ERR_INVALID_RESPONSE: package header is incorrect
      */
-    esp_err_t verify_headers(const R502_DataPkg_t &pkg, R502_pid_t pid, 
-        uint16_t length);
+    esp_err_t verify_headers(const R502_DataPkg_t &pkg, uint16_t length);
 
     /**
      * \brief Return the total number of bytes in a filled package
@@ -191,6 +190,7 @@ private:
     bool initialized = false;
     uint8_t adder[4] = {0xFF, 0xFF, 0xFF, 0xFF};
     int interrupt = 0;
+    int data_package_length = 128;
 
     uart_port_t uart_num;
     gpio_num_t pin_txd;
