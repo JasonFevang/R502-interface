@@ -170,7 +170,8 @@ esp_err_t R502Interface::gen_image(R502_conf_code_t &res)
     // Send package, get response
     R502_DataPackage_t receive_pkg;
     R502_GeneralAck_t *receive_data = &receive_pkg.data.general_ack;
-    esp_err_t err = send_command_package(pkg, receive_pkg);
+    esp_err_t err = send_command_package(pkg, receive_pkg, 
+        read_delay_gen_image);
     if(err) return err;
 
     // Return result
@@ -179,7 +180,7 @@ esp_err_t R502Interface::gen_image(R502_conf_code_t &res)
 }
 
 esp_err_t R502Interface::send_command_package(const R502_DataPackage_t &pkg,
-    R502_DataPackage_t &receive_pkg)
+    R502_DataPackage_t &receive_pkg, int read_delay_ms)
 {
     int len = uart_write_bytes(UART_NUM_1, (char *)&pkg, package_length(pkg));
     if(len == -1){
@@ -193,7 +194,7 @@ esp_err_t R502Interface::send_command_package(const R502_DataPackage_t &pkg,
     }
 
     len = uart_read_bytes(UART_NUM_1, (uint8_t *)&receive_pkg, 
-        sizeof(receive_pkg), read_delay / portTICK_RATE_MS);
+        sizeof(receive_pkg), read_delay_ms / portTICK_RATE_MS);
 
     if(len == -1){
         ESP_LOGE(TAG, "uart read error, parameter error");

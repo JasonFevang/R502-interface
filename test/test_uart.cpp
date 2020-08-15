@@ -4,6 +4,7 @@
 #include "R502Interface.hpp"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp32/rom/uart.h"
 
 #define PIN_TXD  (GPIO_NUM_4)
 #define PIN_NC_1 (GPIO_NUM_16)
@@ -21,6 +22,11 @@ static R502Interface R502;
 
 void tearDown(){
     R502.deinit();
+}
+
+void wait_with_message(char *message){
+    printf(message);
+    uart_rx_one_char_block();
 }
 
 TEST_CASE("Not connected", "[initialization]")
@@ -92,7 +98,7 @@ TEST_CASE("TemplateNum", "[system command]")
     esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
     TEST_ESP_OK(err);
     R502_conf_code_t conf_code;
-    uint16_t template_num = UINT_FAST16_MAX;
+    uint16_t template_num = 65535;
     err = R502.template_num(conf_code, template_num);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
@@ -106,4 +112,17 @@ TEST_CASE("GenImage", "[fingerprint processing command]")
     err = R502.gen_image(conf_code);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_err_no_finger, conf_code);
+}
+
+TEST_CASE("GenImageSuccess", "[fingerprint processing command][userInput]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+    R502_conf_code_t conf_code;
+
+    wait_with_message("Place finger on sensor, then press enter\n");
+
+    err = R502.gen_image(conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
 }

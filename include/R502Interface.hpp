@@ -103,7 +103,7 @@ private:
      *         ESP_ERR_NOT_FOUND: No response from the module
      */
     esp_err_t send_command_package(const R502_DataPackage_t &pkg,
-        R502_DataPackage_t &receivePkg);
+        R502_DataPackage_t &receivePkg, int read_delay_ms = default_read_delay);
 
     void set_headers(R502_DataPackage_t &package, R502_pid_t pid,
         uint16_t length);
@@ -156,6 +156,7 @@ private:
 
     // constants
     const uint8_t start[2] = {0xEF, 0x01};
-    const uint16_t system_identifier_code = 9;
-    const int read_delay = 50; //ms
+    static const uint16_t system_identifier_code = 9;
+    static const int default_read_delay = 50; //ms
+    static const int read_delay_gen_image = 500; //ms
 };
