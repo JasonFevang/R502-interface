@@ -30,7 +30,9 @@ esp_err_t R502Interface::init(uart_port_t _uart_num, gpio_num_t _pin_txd,
     if(err) return err;
     err = uart_set_pin(uart_num, pin_txd, pin_rxd, pin_rts, pin_cts);
     if(err) return err;
-    err = uart_driver_install(uart_num, BUF_SIZE * 2, 0, 0, NULL, 0);
+    err = uart_driver_install(uart_num, 
+        std::max<int>(sizeof(R502_DataPkg_t), min_uart_buffer_size), 0, 0, NULL,
+        0);
     if(err) return err;
 
     err = gpio_set_direction(pin_irq, GPIO_MODE_INPUT);
@@ -73,10 +75,14 @@ uint8_t *R502Interface::get_module_address(){
     return adder;
 }
 
+void R502Interface::set_up_image_cb(up_image_cb_t _up_image_cb){
+    up_image_cb = _up_image_cb;
+}
+
 esp_err_t R502Interface::vfy_pass(const std::array<uint8_t, 4> &pass, 
     R502_conf_code_t &res)
 {
-    R502_DataPackage_t pkg;
+    R502_DataPkg_t pkg;
     R502_VfyPwd_t *data = &pkg.data.vfy_pwd;
 
     // Fill package
@@ -88,8 +94,9 @@ esp_err_t R502Interface::vfy_pass(const std::array<uint8_t, 4> &pass,
     fill_checksum(pkg);
 
     // Send package, get response
-    R502_DataPackage_t receive_pkg;
-    esp_err_t err = send_command_package(pkg, receive_pkg);
+    R502_DataPkg_t receive_pkg;
+    esp_err_t err = send_command_package(pkg, receive_pkg, 
+        sizeof(R502_GeneralAck_t));
     if(err) return err;
     
     // Return result
@@ -100,7 +107,7 @@ esp_err_t R502Interface::vfy_pass(const std::array<uint8_t, 4> &pass,
 esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res, 
     R502_sys_para_t &sys_para)
 {
-    R502_DataPackage_t pkg;
+    R502_DataPkg_t pkg;
     R502_GeneralCommand_t *data = &pkg.data.general;
 
     // Fill package
@@ -109,9 +116,10 @@ esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res,
     fill_checksum(pkg);
 
     // Send package, get response
-    R502_DataPackage_t receive_pkg;
+    R502_DataPkg_t receive_pkg;
     R502_ReadSysParaAck_t *receive_data = &receive_pkg.data.read_sys_para_ack;
-    esp_err_t err = send_command_package(pkg, receive_pkg);
+    esp_err_t err = send_command_package(pkg, receive_pkg, 
+        sizeof(R502_ReadSysParaAck_t));
     if(err) return err;
 
     // Return result
@@ -136,7 +144,7 @@ esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res,
 esp_err_t R502Interface::template_num(R502_conf_code_t &res, 
     uint16_t &template_num)
 {
-    R502_DataPackage_t pkg;
+    R502_DataPkg_t pkg;
     R502_GeneralCommand_t *data = &pkg.data.general;
 
     // Fill package
@@ -145,9 +153,10 @@ esp_err_t R502Interface::template_num(R502_conf_code_t &res,
     fill_checksum(pkg);
 
     // Send package, get response
-    R502_DataPackage_t receive_pkg;
+    R502_DataPkg_t receive_pkg;
     R502_TemplateNumAck_t *receive_data = &receive_pkg.data.template_num_ack;
-    esp_err_t err = send_command_package(pkg, receive_pkg);
+    esp_err_t err = send_command_package(pkg, receive_pkg, 
+        sizeof(R502_TemplateNumAck_t));
     if(err) return err;
 
     // Return result
@@ -159,7 +168,7 @@ esp_err_t R502Interface::template_num(R502_conf_code_t &res,
 
 esp_err_t R502Interface::gen_image(R502_conf_code_t &res)
 {
-    R502_DataPackage_t pkg;
+    R502_DataPkg_t pkg;
     R502_GeneralCommand_t *data = &pkg.data.general;
 
     // Fill package
@@ -168,10 +177,10 @@ esp_err_t R502Interface::gen_image(R502_conf_code_t &res)
     fill_checksum(pkg);
 
     // Send package, get response
-    R502_DataPackage_t receive_pkg;
+    R502_DataPkg_t receive_pkg;
     R502_GeneralAck_t *receive_data = &receive_pkg.data.general_ack;
     esp_err_t err = send_command_package(pkg, receive_pkg, 
-        read_delay_gen_image);
+        sizeof(R502_GeneralAck_t), read_delay_gen_image);
     if(err) return err;
 
     // Return result
@@ -179,10 +188,58 @@ esp_err_t R502Interface::gen_image(R502_conf_code_t &res)
     return ESP_OK;
 }
 
-esp_err_t R502Interface::send_command_package(const R502_DataPackage_t &pkg,
-    R502_DataPackage_t &receive_pkg, int read_delay_ms)
+esp_err_t R502Interface::up_image(R502_conf_code_t &res){
+    R502_DataPkg_t pkg;
+    R502_GeneralCommand_t *data = &pkg.data.general;
+
+    if(!up_image_cb){
+        ESP_LOGW(TAG, "up_image callback not set");
+        return ESP_ERR_INVALID_STATE;
+    }
+
+    // Fill package
+    set_headers(pkg, R502_pid_command, sizeof(R502_GeneralCommand_t));
+    data->instr_code = R502_ic_up_image;
+    fill_checksum(pkg);
+
+    // Send package, get response
+    R502_DataPkg_t receive_pkg;
+    R502_GeneralAck_t *receive_data = &receive_pkg.data.general_ack;
+    esp_err_t err = send_command_package(pkg, receive_pkg, 
+        sizeof(R502_GeneralAck_t), read_delay_gen_image);
+    if(err) return err;
+
+    // receive package
+    // verify it and all that
+    // convert 4bit bytes to 8bit in an expanded buffer
+    // call callback
+
+    // Return result
+    res = (R502_conf_code_t)receive_data->conf_code;
+    return ESP_OK;
+}
+
+esp_err_t R502Interface::send_command_package(const R502_DataPkg_t &pkg,
+    R502_DataPkg_t &receive_pkg, int data_rec_length, int read_delay_ms)
 {
-    int len = uart_write_bytes(UART_NUM_1, (char *)&pkg, package_length(pkg));
+    esp_err_t err = send_package(pkg);
+    if(err) return err;
+    return receive_package(receive_pkg, data_rec_length + header_size, 
+        read_delay_ms);
+}
+
+
+esp_err_t R502Interface::send_package(const R502_DataPkg_t &pkg)
+{
+    int pkg_len = package_length(pkg);
+    if(pkg_len < header_size + sizeof(R502_GeneralCommand_t) || 
+        pkg_len > sizeof(R502_DataPkg_t))
+    {
+        ESP_LOGE(TAG, "package length not set correctly");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    int len = uart_write_bytes(uart_num, (char *)&pkg, pkg_len);
     if(len == -1){
         ESP_LOGE(TAG, "uart write error, parameter error");
         return ESP_ERR_INVALID_STATE;
@@ -192,9 +249,14 @@ esp_err_t R502Interface::send_command_package(const R502_DataPackage_t &pkg,
         ESP_LOGE(TAG, "uart write error, wrong number of bytes written");
         return ESP_ERR_INVALID_SIZE;
     }
+    return ESP_OK;
+}
 
-    len = uart_read_bytes(UART_NUM_1, (uint8_t *)&receive_pkg, 
-        sizeof(receive_pkg), read_delay_ms / portTICK_RATE_MS);
+esp_err_t R502Interface::receive_package(const R502_DataPkg_t &rec_pkg,
+    int data_length, int read_delay_ms)
+{
+    int len = uart_read_bytes(uart_num, (uint8_t *)&rec_pkg, data_length,
+        read_delay_ms / portTICK_RATE_MS);
 
     if(len == -1){
         ESP_LOGE(TAG, "uart read error, parameter error");
@@ -204,12 +266,27 @@ esp_err_t R502Interface::send_command_package(const R502_DataPackage_t &pkg,
         ESP_LOGE(TAG, "uart read error, R502 not found");
         return ESP_ERR_NOT_FOUND;
     }
+    // This check is uncesseccary, it's just gonna fail the crc cause it doesn't
+    // write data into the last crc byte if this is the case. 1/256 or 1/65536 
+    // that this will fail then
+    else if(len < data_length){
+        ESP_LOGE(TAG, "uart read error, not enough bytes read, %d < %d", 
+            len, data_length);
+        uart_flush(uart_num);
+        return ESP_ERR_INVALID_RESPONSE;
+    }
 
     // Verify response
-    if(!verify_checksum(receive_pkg)){
+    if(!verify_checksum(rec_pkg)){
+        ESP_LOGE(TAG, "uart read error, invalid CRC"); 
+        uart_flush(uart_num);
         return ESP_ERR_INVALID_CRC;
     }
-    return verify_headers(receive_pkg, R502_pid_ack, len - 9);
+    esp_err_t err = verify_headers(rec_pkg, R502_pid_ack, len - header_size);
+    if(err){
+        uart_flush(uart_num);
+    }
+    return err;
 }
 
 void R502Interface::busy_delay(int64_t microseconds)
@@ -219,7 +296,7 @@ void R502Interface::busy_delay(int64_t microseconds)
     while(esp_timer_get_time() < time_start + microseconds);
 }
 
-void R502Interface::fill_checksum(R502_DataPackage_t &package)
+void R502Interface::fill_checksum(R502_DataPkg_t &package)
 {
     int data_length = conv_8_to_16(package.length) - 2; // -2 for the 2 byte CS
     int sum = package.pid + package.length[0] + package.length[1];
@@ -232,7 +309,7 @@ void R502Interface::fill_checksum(R502_DataPackage_t &package)
     *++itr = sum & 0xff;
 }
 
-bool R502Interface::verify_checksum(const R502_DataPackage_t &package)
+bool R502Interface::verify_checksum(const R502_DataPkg_t &package)
 {
     int data_length = conv_8_to_16(package.length) - 2; // -2 for the 2 byte CS
     int sum = package.pid + package.length[0] + package.length[1];
@@ -246,7 +323,7 @@ bool R502Interface::verify_checksum(const R502_DataPackage_t &package)
     return (sum == checksum);
 }
 
-esp_err_t R502Interface::verify_headers(const R502_DataPackage_t &pkg, 
+esp_err_t R502Interface::verify_headers(const R502_DataPkg_t &pkg, 
     R502_pid_t pid, uint16_t length)
 {
     // start
@@ -269,14 +346,15 @@ esp_err_t R502Interface::verify_headers(const R502_DataPackage_t &pkg,
 
     // length
     if(conv_8_to_16(pkg.length) != length){
-        ESP_LOGE(TAG, "Response has invalid length");
+        ESP_LOGE(TAG, "Response has invalid length, %d vs %dB received", 
+            conv_8_to_16(pkg.length), length);
         return ESP_ERR_INVALID_RESPONSE;
     }
 
     return ESP_OK;
 }
 
-void R502Interface::set_headers(R502_DataPackage_t &package, R502_pid_t pid,
+void R502Interface::set_headers(R502_DataPkg_t &package, R502_pid_t pid,
     uint16_t length)
 {
     memcpy(package.start, start, sizeof(start));
@@ -300,6 +378,6 @@ void R502Interface::conv_16_to_8(const uint16_t in, uint8_t out[2])
     out[1] = in & 0xff;
 }
 
-uint16_t R502Interface::package_length(const R502_DataPackage_t &pkg){
+uint16_t R502Interface::package_length(const R502_DataPkg_t &pkg){
     return sizeof(pkg) - sizeof(pkg.data) + conv_8_to_16(pkg.length);
 }

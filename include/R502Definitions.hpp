@@ -7,6 +7,9 @@
 #pragma once
 #include <stdint.h>
 
+/// Constants ///
+static const int character_file_size = 384; // bytes
+static const int image_size = 72 * 1024; // bytes
 
 /**
  * \brief Package identifiers
@@ -161,7 +164,7 @@ struct R502_TemplateNumAck_t {
 /**
  * \brief General data structure storing any type of package
  */
-struct R502_DataPackage_t {
+struct R502_DataPkg_t {
     uint8_t start[2]; //!< Two byte header, all packages are the same
     uint8_t adder[4]; //!< Module address, default 0xff, 0xff, 0xff, 0xff
     uint8_t pid; //!< Package id

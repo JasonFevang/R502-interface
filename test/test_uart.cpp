@@ -29,6 +29,13 @@ void wait_with_message(char *message){
     uart_rx_one_char_block();
 }
 
+static int up_image_data_len = 0;
+void up_image_callback(uint8_t *data, int data_len){
+    // this is where you would store or otherwise do something with the image
+    up_image_data_len += data_len;
+    TEST_ASSERT_NOT_NULL(data);
+}
+
 TEST_CASE("Not connected", "[initialization]")
 {
     esp_err_t err = R502.init(UART_NUM_1, PIN_NC_1, PIN_NC_2, PIN_NC_3);
@@ -125,4 +132,20 @@ TEST_CASE("GenImageSuccess", "[fingerprint processing command][userInput]")
     err = R502.gen_image(conf_code);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
+}
+
+TEST_CASE("UpImage", "[fingerprint processing command]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+    R502_conf_code_t conf_code;
+
+    err = R502.up_image(conf_code);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, err);
+    up_image_data_len = 0;
+    R502.set_up_image_cb(up_image_callback);
+    err = R502.up_image(conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    TEST_ASSERT_EQUAL(image_size, up_image_data_len);
 }
