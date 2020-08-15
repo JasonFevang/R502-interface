@@ -49,6 +49,8 @@ public:
      */
     uint8_t *get_module_address();
 
+    /// System Commands ///
+
     /**
      * \brief Verify provided password
      * \param pass 4 byte password to verify
@@ -78,6 +80,16 @@ public:
      * \retval See vfy_pass for description of all possible return values
      */
     esp_err_t template_num(R502_conf_code_t &res, uint16_t &template_num);
+
+    /// Fingerprint Processing Commands ///
+
+    /**
+     * \brief Detect finger, and store finger in imageBuffer
+     * \param res OUT confirmation code
+     * \retval See vfy_pass for description of all possible return values
+     */
+    esp_err_t gen_image(R502_conf_code_t &res);
+
 private:
     static const char *TAG;
 

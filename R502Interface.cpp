@@ -157,6 +157,27 @@ esp_err_t R502Interface::template_num(R502_conf_code_t &res,
     return ESP_OK;
 }
 
+esp_err_t R502Interface::gen_image(R502_conf_code_t &res)
+{
+    R502_DataPackage_t pkg;
+    R502_GeneralCommand_t *data = &pkg.data.general;
+
+    // Fill package
+    set_headers(pkg, R502_pid_command, sizeof(R502_GeneralCommand_t));
+    data->instr_code = R502_ic_gen_img;
+    fill_checksum(pkg);
+
+    // Send package, get response
+    R502_DataPackage_t receive_pkg;
+    R502_GeneralAck_t *receive_data = &receive_pkg.data.general_ack;
+    esp_err_t err = send_command_package(pkg, receive_pkg);
+    if(err) return err;
+
+    // Return result
+    res = (R502_conf_code_t)receive_data->conf_code;
+    return ESP_OK;
+}
+
 esp_err_t R502Interface::send_command_package(const R502_DataPackage_t &pkg,
     R502_DataPackage_t &receive_pkg)
 {

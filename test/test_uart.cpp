@@ -23,7 +23,32 @@ void tearDown(){
     R502.deinit();
 }
 
-TEST_CASE("VfyPwd", "[command]")
+TEST_CASE("Not connected", "[initialization]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_NC_1, PIN_NC_2, PIN_NC_3);
+    TEST_ESP_OK(err);
+    std::array<uint8_t, 4> pass = {0x00, 0x00, 0x00, 0x00};
+    R502_conf_code_t conf_code = R502_fail;
+    err = R502.vfy_pass(pass, conf_code);
+    TEST_ASSERT_EQUAL(ESP_ERR_NOT_FOUND, err);
+}
+
+TEST_CASE("Reinitialize", "[initialization]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_NC_1, PIN_NC_2, PIN_NC_3);
+    TEST_ESP_OK(err);
+    err = R502.deinit();
+    TEST_ESP_OK(err);
+    err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+    std::array<uint8_t, 4> pass = {0x00, 0x00, 0x00, 0x00};
+    R502_conf_code_t conf_code = R502_fail;
+    err = R502.vfy_pass(pass, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(conf_code, R502_ok);
+}
+
+TEST_CASE("VfyPwd", "[system command]")
 {
     esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
     TEST_ESP_OK(err);
@@ -40,7 +65,7 @@ TEST_CASE("VfyPwd", "[command]")
     TEST_ESP_OK(err);
 }
 
-TEST_CASE("ReadSysPara", "[command]")
+TEST_CASE("ReadSysPara", "[system command]")
 {
     esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
     TEST_ESP_OK(err);
@@ -62,39 +87,23 @@ TEST_CASE("ReadSysPara", "[command]")
     //printf("baud_setting %d\n", sys_para.baud_setting);
 }
 
-TEST_CASE("TemplateNum", "[command]")
+TEST_CASE("TemplateNum", "[system command]")
 {
     esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
     TEST_ESP_OK(err);
     R502_conf_code_t conf_code;
     uint16_t template_num = UINT_FAST16_MAX;
-    ESP_LOGI(TAG, "template_num %d", template_num);
     err = R502.template_num(conf_code, template_num);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
-    ESP_LOGI(TAG, "template_num %d", template_num);
 }
 
-TEST_CASE("Not connected", "[system]")
+TEST_CASE("GenImage", "[fingerprint processing command]")
 {
-    esp_err_t err = R502.init(UART_NUM_1, PIN_NC_1, PIN_NC_2, PIN_NC_3);
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
     TEST_ESP_OK(err);
-    std::array<uint8_t, 4> pass = {0x00, 0x00, 0x00, 0x00};
-    R502_conf_code_t conf_code = R502_fail;
-    err = R502.vfy_pass(pass, conf_code);
-    TEST_ASSERT_EQUAL(ESP_ERR_NOT_FOUND, err);
-}
-TEST_CASE("Reinitialize", "[system]")
-{
-    esp_err_t err = R502.init(UART_NUM_1, PIN_NC_1, PIN_NC_2, PIN_NC_3);
+    R502_conf_code_t conf_code;
+    err = R502.gen_image(conf_code);
     TEST_ESP_OK(err);
-    err = R502.deinit();
-    TEST_ESP_OK(err);
-    err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
-    TEST_ESP_OK(err);
-    std::array<uint8_t, 4> pass = {0x00, 0x00, 0x00, 0x00};
-    R502_conf_code_t conf_code = R502_fail;
-    err = R502.vfy_pass(pass, conf_code);
-    TEST_ESP_OK(err);
-    TEST_ASSERT_EQUAL(conf_code, R502_ok);
+    TEST_ASSERT_EQUAL(R502_err_no_finger, conf_code);
 }
