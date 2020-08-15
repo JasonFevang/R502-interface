@@ -79,17 +79,12 @@ typedef enum {
     R502_err_comm_port = 0x1D,
 } R502_conf_code_t;
 
-struct R502_sys_para_t {
-    uint8_t status_register[2];
-    uint8_t system_identifier_code[2];
-    uint8_t finger_library_size[2];
-    uint8_t security_level[2];
-    uint8_t device_address[4];
-    uint8_t data_packet_size[2];
-    uint8_t baud_setting[2];
-};
+///// Return Data Structures /////
 
-struct R502_sys_para_2_t {
+/**
+ * \brief Data structure to return system parameters to caller
+ */
+struct R502_sys_para_t {
     uint16_t status_register;
     uint16_t system_identifier_code;
     uint16_t finger_library_size;
@@ -97,6 +92,20 @@ struct R502_sys_para_2_t {
     uint8_t device_address[4];
     uint16_t data_packet_size;
     uint16_t baud_setting;
+};
+
+///// Command Packages /////
+
+/// System Commands ///
+
+/**
+ * \brief Data section of a general command package
+ * 
+ * Many commands have this same format, reuse this
+ */
+struct R502_GeneralCommand_t {
+    uint8_t instr_code; //!< instruction code
+    uint8_t checksum[2]; //!< checksum
 };
 
 /**
@@ -117,15 +126,37 @@ struct R502_SetPwd_t {
     uint8_t checksum[2]; //!< checksum
 };
 
+///// Acknowledgement Packages /////
+
 /**
  * \brief Data section of a general acknowledge package from R502
  * 
  * Many commands have this same acknowledge format, reuse this
  */
-struct R502_Ack_t {
+struct R502_GeneralAck_t {
     uint8_t conf_code; //!< confirmation code
     uint8_t checksum[2]; //!< checksum
 };
+
+/**
+ * \brief Data section of a ReadSysPara acknowledge package from R502
+ */
+struct R502_ReadSysParaAck_t {
+    uint8_t conf_code; //!< confirmation code
+    uint8_t data[16]; //!< Data section containing all system parameters
+    uint8_t checksum[2]; //!< checksum
+};
+
+
+/**
+ * \brief Data section of a template_num acknowledge package from R502
+ */
+struct R502_TemplateNumAck_t {
+    uint8_t conf_code; //!< confirmation code
+    uint8_t template_num[2]; //!< Data section containing all system parameters
+    uint8_t checksum[2]; //!< checksum
+};
+
 
 /**
  * \brief General data structure storing any type of package
@@ -136,8 +167,11 @@ struct R502_DataPackage_t {
     uint8_t pid; //!< Package id
     uint8_t length[2]; //!< length in bytes of data section of this package
     union {
+        R502_GeneralCommand_t general;
         R502_VfyPwd_t vfy_pwd;
         R502_SetPwd_t set_pwd;
-        R502_Ack_t default_ack;
+        R502_GeneralAck_t general_ack;
+        R502_ReadSysParaAck_t read_sys_para_ack;
+        R502_TemplateNumAck_t template_num_ack;
     } data; //!< Data and checksum of the package
 };

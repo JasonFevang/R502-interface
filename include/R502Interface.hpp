@@ -45,6 +45,10 @@ public:
     esp_err_t deinit();
 
     /**
+     * \brief Return pointer to 4 byte length module address
+     */
+    uint8_t *get_module_address();
+    /**
      * \brief Verify provided password
      * \param pass 4 byte password to verify
      * \param res confirmation code provided by the R502
@@ -57,8 +61,36 @@ public:
      */
     esp_err_t vfy_pass(const std::array<uint8_t, 4> &pass, 
         R502_conf_code_t &res);
+
+    /**
+     * \brief Read system parameters
+     * \param res confirmation code provided by the R502
+     * \param sys_para data structure to be filled with system parameters
+     * \retval See vfy_pass for description of all possible return values
+     */
+    esp_err_t read_sys_para(R502_conf_code_t &res, R502_sys_para_t &sys_para);
+
+    /**
+     * \brief Read current valid template number
+     * \param res OUT confirmation code provided by the R502
+     * \param template_num OUT for the returned template number
+     * \retval See vfy_pass for description of all possible return values
+     */
+    esp_err_t template_num(R502_conf_code_t &res, uint16_t &template_num);
 private:
     static const char *TAG;
+
+    /**
+     * \brief Send a command to the module, and read its acknowledgement
+     * \param pkg data to send
+     * \param receivePkg package to read response data into
+     * \retval ESP_OK: successful
+     *         ESP_ERR_INVALID_STATE: Error sending or recieving via UART
+     *         ESP_ERR_INVALID_SIZE: Not all data was sent out
+     *         ESP_ERR_NOT_FOUND: No response from the module
+     */
+    esp_err_t send_command_package(const R502_DataPackage_t &pkg,
+        R502_DataPackage_t &receivePkg);
 
     void set_headers(R502_DataPackage_t &package, R502_pid_t pid,
         uint16_t length);
@@ -79,21 +111,6 @@ private:
         uint16_t length);
 
     /**
-     * \brief Send a command to the module, and read its acknowledgement
-     * \param pkg data to send
-     * \param receivePkg package to read response data into
-     * \retval ESP_OK: successful
-     *         ESP_ERR_INVALID_STATE: Error sending or recieving via UART
-     *         ESP_ERR_INVALID_SIZE: Not all data was sent out
-     *         ESP_ERR_NOT_FOUND: No response from the module
-     */
-    esp_err_t send_command_package(const R502_DataPackage_t &pkg,
-        R502_DataPackage_t &receivePkg);
-
-    uint16_t conv_8_to_16(const uint8_t in[2]);
-    void conv_16_to_8(const uint16_t in, uint8_t out[2]);
-
-    /**
      * \brief Return the total number of bytes in a filled package
      * \param pkg Package to measure
      * This uses the filled length parameter, so it doesn't need to know what
@@ -103,7 +120,11 @@ private:
      */
     uint16_t package_length(const R502_DataPackage_t &pkg);
 
+    uint16_t conv_8_to_16(const uint8_t in[2]);
+    void conv_16_to_8(const uint16_t in, uint8_t out[2]);
+
     void busy_delay(int64_t microseconds);
+
     static void IRAM_ATTR irq_intr(void *arg);
 
     gpio_num_t pin_txd;
@@ -120,6 +141,7 @@ private:
     bool initialized = false;
 
     const uint8_t start[2] = {0xEF, 0x01};
+    const uint16_t system_identifier_code = 9;
     uint8_t adder[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-    const int read_delay = 20; //ms
+    const int read_delay = 50; //ms
 };

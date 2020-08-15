@@ -49,7 +49,32 @@ TEST_CASE("ReadSysPara", "[command]")
     err = R502.read_sys_para(conf_code, sys_para);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(R502.get_module_address(), 
+        sys_para.device_address, 4);
+    //printf("status_register %d\n", sys_para.status_register);
+    //printf("system_identifier_code %d\n", sys_para.system_identifier_code);
+    //printf("finger_library_size %d\n", sys_para.finger_library_size);
+    //printf("security_level %d\n", sys_para.security_level);
+    //printf("device_address %x%x%x%x\n", sys_para.device_address[0], 
+        //sys_para.device_address[1], sys_para.device_address[2], 
+        //sys_para.device_address[3]);
+    //printf("data_packet_size %d\n", sys_para.data_packet_size);
+    //printf("baud_setting %d\n", sys_para.baud_setting);
 }
+
+TEST_CASE("TemplateNum", "[command]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+    R502_conf_code_t conf_code;
+    uint16_t template_num = UINT_FAST16_MAX;
+    ESP_LOGI(TAG, "template_num %d", template_num);
+    err = R502.template_num(conf_code, template_num);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    ESP_LOGI(TAG, "template_num %d", template_num);
+}
+
 TEST_CASE("Not connected", "[system]")
 {
     esp_err_t err = R502.init(UART_NUM_1, PIN_NC_1, PIN_NC_2, PIN_NC_3);

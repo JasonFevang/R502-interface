@@ -69,6 +69,127 @@ void IRAM_ATTR R502Interface::irq_intr(void *arg)
     me->interrupt++;
 }
 
+uint8_t *R502Interface::get_module_address(){
+    return adder;
+}
+
+esp_err_t R502Interface::vfy_pass(const std::array<uint8_t, 4> &pass, 
+    R502_conf_code_t &res)
+{
+    R502_DataPackage_t pkg;
+    R502_VfyPwd_t *data = &pkg.data.vfy_pwd;
+
+    // Fill package
+    set_headers(pkg, R502_pid_command, sizeof(R502_VfyPwd_t));
+    data->instr_code = R502_ic_vfy_pwd;
+    for(int i = 0; i < 4; i++){
+        data->password[i] = pass[i];
+    }
+    fill_checksum(pkg);
+
+    // Send package, get response
+    R502_DataPackage_t receive_pkg;
+    esp_err_t err = send_command_package(pkg, receive_pkg);
+    if(err) return err;
+    
+    // Return result
+    res = (R502_conf_code_t)receive_pkg.data.general_ack.conf_code;
+    return ESP_OK;
+}
+
+esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res, 
+    R502_sys_para_t &sys_para)
+{
+    R502_DataPackage_t pkg;
+    R502_GeneralCommand_t *data = &pkg.data.general;
+
+    // Fill package
+    set_headers(pkg, R502_pid_command, sizeof(R502_GeneralCommand_t));
+    data->instr_code = R502_ic_read_sys_para;
+    fill_checksum(pkg);
+
+    // Send package, get response
+    R502_DataPackage_t receive_pkg;
+    R502_ReadSysParaAck_t *receive_data = &receive_pkg.data.read_sys_para_ack;
+    esp_err_t err = send_command_package(pkg, receive_pkg);
+    if(err) return err;
+
+    // Return result
+    res = (R502_conf_code_t)receive_data->conf_code;
+
+    if(sys_para.system_identifier_code != system_identifier_code){
+        ESP_LOGW(TAG, "sys_para system identifier is %d not %d", 
+            sys_para.system_identifier_code, system_identifier_code);
+    }
+
+    sys_para.status_register = conv_8_to_16(receive_data->data + 0);
+    sys_para.system_identifier_code = conv_8_to_16(receive_data->data + 2);
+    sys_para.finger_library_size = conv_8_to_16(receive_data->data + 4);
+    sys_para.security_level = conv_8_to_16(receive_data->data + 6);
+    memcpy(sys_para.device_address, receive_data->data+8, 4);
+    sys_para.data_packet_size = conv_8_to_16(receive_data->data + 12);
+    sys_para.baud_setting = conv_8_to_16(receive_data->data + 14);
+
+    return ESP_OK;
+}
+
+esp_err_t R502Interface::template_num(R502_conf_code_t &res, 
+    uint16_t &template_num)
+{
+    R502_DataPackage_t pkg;
+    R502_GeneralCommand_t *data = &pkg.data.general;
+
+    // Fill package
+    set_headers(pkg, R502_pid_command, sizeof(R502_GeneralCommand_t));
+    data->instr_code = R502_ic_template_num;
+    fill_checksum(pkg);
+
+    // Send package, get response
+    R502_DataPackage_t receive_pkg;
+    R502_TemplateNumAck_t *receive_data = &receive_pkg.data.template_num_ack;
+    esp_err_t err = send_command_package(pkg, receive_pkg);
+    if(err) return err;
+
+    // Return result
+    res = (R502_conf_code_t)receive_data->conf_code;
+    template_num = conv_8_to_16(receive_data->template_num);
+
+    return ESP_OK;
+}
+
+esp_err_t R502Interface::send_command_package(const R502_DataPackage_t &pkg,
+    R502_DataPackage_t &receive_pkg)
+{
+    int len = uart_write_bytes(UART_NUM_1, (char *)&pkg, package_length(pkg));
+    if(len == -1){
+        ESP_LOGE(TAG, "uart write error, parameter error");
+        return ESP_ERR_INVALID_STATE;
+    }
+    else if(len != package_length(pkg)){
+        // not all data transferred
+        ESP_LOGE(TAG, "uart write error, wrong number of bytes written");
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    len = uart_read_bytes(UART_NUM_1, (uint8_t *)&receive_pkg, 
+        sizeof(receive_pkg), read_delay / portTICK_RATE_MS);
+
+    if(len == -1){
+        ESP_LOGE(TAG, "uart read error, parameter error");
+        return ESP_ERR_INVALID_STATE;
+    }
+    else if(len == 0){
+        ESP_LOGE(TAG, "uart read error, R502 not found");
+        return ESP_ERR_NOT_FOUND;
+    }
+
+    // Verify response
+    if(!verify_checksum(receive_pkg)){
+        return ESP_ERR_INVALID_CRC;
+    }
+    return verify_headers(receive_pkg, R502_pid_ack, len - 9);
+}
+
 void R502Interface::busy_delay(int64_t microseconds)
 {
     // wait
@@ -145,66 +266,6 @@ void R502Interface::set_headers(R502_DataPackage_t &package, R502_pid_t pid,
     package.length[1] = length & 0xff;
 }
 
-esp_err_t R502Interface::vfy_pass(const std::array<uint8_t, 4> &pass, 
-    R502_conf_code_t &res)
-{
-    R502_DataPackage_t pkg;
-    R502_VfyPwd_t *data = &pkg.data.vfy_pwd;
-
-    // Fill package
-    set_headers(pkg, R502_pid_command, sizeof(R502_VfyPwd_t));
-    data->instr_code = R502_ic_vfy_pwd;
-    for(int i = 0; i < 4; i++){
-        data->password[i] = pass[i];
-    }
-    fill_checksum(pkg);
-
-    // Send package, get response
-    R502_DataPackage_t receive_pkg;
-    esp_err_t err = send_command_package(pkg, receive_pkg);
-    if(err) return err;
-    
-    // Verify response
-    if(!verify_checksum(receive_pkg)){
-        return ESP_ERR_INVALID_CRC;
-    }
-    err = verify_headers(receive_pkg, R502_pid_ack, sizeof(R502_Ack_t));
-    if(err) return err;
-
-    // Return result
-    res = (R502_conf_code_t)receive_pkg.data.default_ack.conf_code;
-    return ESP_OK;
-}
-
-esp_err_t R502Interface::send_command_package(const R502_DataPackage_t &pkg,
-    R502_DataPackage_t &receive_pkg)
-{
-
-    int len = uart_write_bytes(UART_NUM_1, (char *)&pkg, package_length(pkg));
-    if(len == -1){
-        // parameter error
-        return ESP_ERR_INVALID_STATE;
-    }
-    else if(len != sizeof(pkg)){
-        // not all data transferred
-        return ESP_ERR_INVALID_SIZE;
-    }
-
-    //busy_delay(50000);
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-
-    len = uart_read_bytes(UART_NUM_1, (uint8_t *)&receive_pkg, 
-        sizeof(receive_pkg), read_delay / portTICK_RATE_MS);
-
-    if(len == -1){
-        // parameter error
-        return ESP_ERR_INVALID_STATE;
-    }
-    else if(len == 0){
-        return ESP_ERR_NOT_FOUND;
-    }
-    return ESP_OK;
-}
 
 uint16_t R502Interface::conv_8_to_16(const uint8_t in[2])
 {
