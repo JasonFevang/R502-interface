@@ -115,6 +115,50 @@ TEST_CASE("ReadSysPara", "[system command]")
     printf("baud_setting %d\n", sys_para.baud_setting);
 }
 
+TEST_CASE("SetBaudRate", "[system command]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+
+    R502_conf_code_t conf_code = R502_fail;
+    R502_baud_t current_baud = R502_baud_57600;
+    R502_sys_para_t sys_para;
+    err = R502.read_sys_para(conf_code, sys_para);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    current_baud = sys_para.baud_setting;
+
+    // 9600
+    err = R502.set_baud_rate(R502_baud_9600, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+
+    // 19200
+    err = R502.set_baud_rate(R502_baud_19200, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+
+    // 38400
+    err = R502.set_baud_rate(R502_baud_38400, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+
+    // 57600
+    err = R502.set_baud_rate(R502_baud_57600, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+
+    // 115200
+    err = R502.set_baud_rate(R502_baud_115200, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+
+    // rest baud rate to what it was before testing
+    err = R502.set_baud_rate(current_baud, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+}
+
 TEST_CASE("TemplateNum", "[system command]")
 {
     esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);

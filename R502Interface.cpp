@@ -3,11 +3,13 @@
 const char *R502Interface::TAG = "R502";
 
 esp_err_t R502Interface::init(uart_port_t _uart_num, gpio_num_t _pin_txd, 
-    gpio_num_t _pin_rxd, gpio_num_t _pin_irq)
+    gpio_num_t _pin_rxd, gpio_num_t _pin_irq, 
+    R502_baud_t _baud)
 {
     if(initialized){
         return ESP_OK;
     }
+    cur_baud = _baud;
     pin_txd = _pin_txd;
     pin_rxd = _pin_rxd;
     pin_irq = _pin_irq;
@@ -18,7 +20,7 @@ esp_err_t R502Interface::init(uart_port_t _uart_num, gpio_num_t _pin_txd,
     /* Configure parameters of an UART driver,
      * communication pins and install the driver */
     uart_config_t uart_config = {
-        .baud_rate = 57600,
+        .baud_rate = 9600*cur_baud,
         .data_bits = UART_DATA_8_BITS,
         .parity    = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -98,12 +100,125 @@ esp_err_t R502Interface::vfy_pass(const std::array<uint8_t, 4> &pass,
 
     // Send package, get response
     R502_DataPkg_t receive_pkg;
+    R502_GeneralAck_t *receive_data = &receive_pkg.data.general_ack;
     esp_err_t err = send_command_package(pkg, receive_pkg, 
-        sizeof(R502_GeneralAck_t));
+        sizeof(*receive_data));
     if(err) return err;
     
     // Return result
-    res = (R502_conf_code_t)receive_pkg.data.general_ack.conf_code;
+    res = (R502_conf_code_t)receive_data->conf_code;
+    return ESP_OK;
+}
+
+esp_err_t R502Interface::set_sys_para(R502_para_num parameter_num, int value, 
+    R502_conf_code_t &res)
+{
+    // validate input data
+    esp_err_t err = ESP_OK;
+    switch(parameter_num){
+        case R502_para_num_baud_control:{
+            if(value != 1 && value != 2 && value != 4 && value != 6 && 
+                value != 12)
+            {
+                err = ESP_ERR_INVALID_ARG;
+            }
+            break;
+        }
+        case R502_para_num_security_level:{
+            if(value != 1 && value != 2 && value != 3 && value != 4 && 
+                value != 5)
+            {
+                err = ESP_ERR_INVALID_ARG;
+            }
+            break;
+        }
+        case R502_para_num_data_pkg_len:{
+            if(value != 0 && value != 1 && value != 2 && value != 3){
+                err = ESP_ERR_INVALID_ARG;
+            }
+            break;
+        }
+        default:{
+            ESP_LOGE(TAG, "invalid parameter number, %d", parameter_num);
+            return ESP_ERR_INVALID_ARG;
+        }
+    };
+    if(err){
+        ESP_LOGE(TAG, "invalid parameter value, %d. Param_num %d", value, 
+            parameter_num);
+        return err;
+    }
+
+    R502_DataPkg_t pkg;
+    R502_SetSysPara_t *data = &pkg.data.set_sys_para;
+
+    // Fill package
+    set_headers(pkg, R502_pid_command, sizeof(R502_SetSysPara_t));
+    data->instr_code = R502_ic_set_sys_para;
+    data->parameter_number = parameter_num;
+    data->contents = value;
+    fill_checksum(pkg);
+
+    // Send package, get response
+    R502_DataPkg_t receive_pkg;
+    R502_GeneralAck_t *receive_data = &receive_pkg.data.general_ack;
+    err = send_command_package(pkg, receive_pkg, 
+        sizeof(*receive_data));
+    if(err) return err;
+
+    // Return result
+    res = (R502_conf_code_t)receive_data->conf_code;
+    return ESP_OK;
+}
+
+esp_err_t R502Interface::set_baud_rate(R502_baud_t baud, R502_conf_code_t &res)
+{
+    esp_err_t err = set_sys_para(R502_para_num_baud_control, baud, res);
+    if(err){
+        ESP_LOGE(TAG, "set_sys_para err %s", esp_err_to_name(err));
+        return err;
+    }
+    // remember the current baud rate
+    cur_baud = baud;
+
+    esp_err_t err_uart_driver = uart_driver_delete(uart_num);
+    if(err_uart_driver){
+        ESP_LOGE(TAG, "error deleting uart driver: %s",  
+            esp_err_to_name(err));
+    }
+    // Reinitialize with the new baud rate
+    uart_config_t uart_config = {
+        .baud_rate = 9600*baud,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .rx_flow_ctrl_thresh = 0,
+        .use_ref_tick = false
+    };
+    err = uart_param_config(uart_num, &uart_config);
+    if(err){
+        ESP_LOGE(TAG, "error reconfiguring uart baud rate: %s",  
+            esp_err_to_name(err));
+    }
+
+    err = uart_driver_install(uart_num, 
+        std::max<int>(sizeof(R502_DataPkg_t), min_uart_buffer_size), 0, 0, NULL,
+        0);
+    if(err){
+        ESP_LOGE(TAG, "error installing uart driver: %s",  
+            esp_err_to_name(err));
+    }
+    //err = deinit();
+    //if(err){
+        //ESP_LOGE(TAG, "set baud deinit() err %s", esp_err_to_name(err));
+        //return err;
+    //}
+    //err = init(uart_num, pin_txd, pin_rxd, pin_irq, cur_baud);
+    //if(err){
+        //ESP_LOGE(TAG, "set baud init() err %s", esp_err_to_name(err));
+        //return err;
+    //}
     return ESP_OK;
 }
 
@@ -122,7 +237,7 @@ esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res,
     R502_DataPkg_t receive_pkg;
     R502_ReadSysParaAck_t *receive_data = &receive_pkg.data.read_sys_para_ack;
     esp_err_t err = send_command_package(pkg, receive_pkg, 
-        sizeof(R502_ReadSysParaAck_t));
+        sizeof(*receive_data));
     if(err) return err;
 
     // Return result
@@ -139,7 +254,7 @@ esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res,
     sys_para.security_level = conv_8_to_16(receive_data->data + 6);
     memcpy(sys_para.device_address, receive_data->data+8, 4);
     sys_para.data_packet_size = conv_8_to_16(receive_data->data + 12);
-    sys_para.baud_setting = conv_8_to_16(receive_data->data + 14);
+    sys_para.baud_setting = (R502_baud_t)conv_8_to_16(receive_data->data + 14);
 
     return ESP_OK;
 }
@@ -183,7 +298,7 @@ esp_err_t R502Interface::gen_image(R502_conf_code_t &res)
     R502_DataPkg_t receive_pkg;
     R502_GeneralAck_t *receive_data = &receive_pkg.data.general_ack;
     esp_err_t err = send_command_package(pkg, receive_pkg, 
-        sizeof(R502_GeneralAck_t), read_delay_gen_image);
+        sizeof(*receive_data), read_delay_gen_image);
     if(err) return err;
 
     // Return result
@@ -212,7 +327,7 @@ esp_err_t R502Interface::up_image(R502_conf_code_t &res){
     R502_DataPkg_t receive_pkg;
     R502_GeneralAck_t *receive_data = &receive_pkg.data.general_ack;
     esp_err_t err = send_command_package(pkg, receive_pkg, 
-        sizeof(R502_GeneralAck_t), read_delay_gen_image);
+        sizeof(*receive_data), read_delay_gen_image);
     if(err) return err;
 
     res = (R502_conf_code_t)receive_data->conf_code;
@@ -270,6 +385,16 @@ esp_err_t R502Interface::send_package(const R502_DataPkg_t &pkg)
         return ESP_ERR_INVALID_ARG;
     }
 
+    //printf("Send Data\n");
+    //int printed = 0;
+    //while(printed < pkg_len){
+        //for(int i = 0; i < 8 && printed < pkg_len; i++){
+            //printf("0x%02X ", *((uint8_t *)&pkg+printed));
+            //printed++;
+        //}
+        //printf("\n");
+    //}
+
     int len = uart_write_bytes(uart_num, (char *)&pkg, pkg_len);
     if(len == -1){
         ESP_LOGE(TAG, "uart write error, parameter error");
@@ -299,15 +424,24 @@ esp_err_t R502Interface::receive_package(const R502_DataPkg_t &rec_pkg,
         ESP_LOGE(TAG, "uart read error, R502 not found");
         return ESP_ERR_NOT_FOUND;
     }
-    // This check is uncesseccary, it's just gonna fail the crc cause it doesn't
-    // write data into the last crc byte if this is the case. 1/256 or 1/65536 
-    // that this will fail then
+    // This check is uncesseccary, it'll probably fail the crc cause it doesn't
+    // write data into the last crc byte if this is the case
     else if(len < data_length){
         ESP_LOGE(TAG, "uart read error, not enough bytes read, %d < %d", 
             len, data_length);
         uart_flush(uart_num);
         return ESP_ERR_INVALID_RESPONSE;
     }
+
+    //printf("response Data\n");
+    //int printed = 0;
+    //while(printed < len){
+        //for(int i = 0; i < 8 && printed < len; i++){
+            //printf("0x%02X ", *((uint8_t *)&rec_pkg+printed));
+            //printed++;
+        //}
+        //printf("\n");
+    //}
 
     // Verify response
     if(!verify_checksum(rec_pkg)){

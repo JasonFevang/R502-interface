@@ -40,7 +40,8 @@ public:
      * \param _pin_irq Pin to receive inturrupt requests from R502 on
      */
     esp_err_t init(uart_port_t _uart_num, gpio_num_t _pin_txd, 
-        gpio_num_t _pin_rxd, gpio_num_t _pin_irq);
+        gpio_num_t _pin_rxd, gpio_num_t _pin_irq, 
+        R502_baud_t _baud = R502_baud_57600);
 
     /**
      * \brief Deinitialize interface, free hardware uart and gpio resources
@@ -75,6 +76,14 @@ public:
         R502_conf_code_t &res);
 
     /**
+     * \brief Set baud rate for communication with R502 module
+     * \param baud baud rate to set
+     * \param res OUT confirmation code provided by the R502
+     * \retval See vfy_pass for description of all possible return values
+     */
+    esp_err_t set_baud_rate(R502_baud_t baud, R502_conf_code_t &res);
+    
+    /**
      * \brief Read system parameters
      * \param res OUT confirmation code provided by the R502
      * \param sys_para OUT data structure to be filled with system parameters
@@ -108,6 +117,24 @@ public:
 
 private:
     static const char *TAG;
+
+    /**
+     * \brief Set system parameters baud rate, security level, and 
+     * data package length
+     * \param parameter_num Select which parameter to be set
+     * \param value The value to set the parameter to
+     * \param res OUT confirmation code provided by the R502
+     * \retval See vfy_pass for description of all possible return values
+     * 
+     * Set to private and broken out to three public methods instead
+     *  Parameter Num       | Value Meaning
+     *  ------------------- | -----------------------------------------------
+     *  Baud Control        | N=[1,2,4,6,12]. Baud rate = N*9600 
+     *  Security Level      | [1,2,3,4,5]. At 1 FAR is high, at 5 FRR is high
+     *  Data Package Length | [0,1,2,3] corresponds to 32, 64, 128, 256 bytes
+     */
+    esp_err_t set_sys_para(R502_para_num parameter_num, int value, 
+        R502_conf_code_t &res);
 
     /**
      * \brief Send a command to the module, and read its acknowledgement
@@ -187,10 +214,11 @@ private:
     up_image_cb_t up_image_cb = nullptr;
 
     // parameters
-    bool initialized = false;
     uint8_t adder[4] = {0xFF, 0xFF, 0xFF, 0xFF};
-    int interrupt = 0;
+    R502_baud_t cur_baud;
     int data_package_length = 128;
+    bool initialized = false;
+    int interrupt = 0;
 
     uart_port_t uart_num;
     gpio_num_t pin_txd;
@@ -204,8 +232,9 @@ private:
     // Private constants
     const uint8_t start[2] = {0xEF, 0x01};
     static const uint16_t system_identifier_code = 9;
-    static const int default_read_delay = 50; // ms
-    static const int read_delay_gen_image = 500; // ms
+    static const int default_read_delay = 200; // ms
+    static const int read_delay_gen_image = 2000; // ms
+    // The slowest speed is transfering 256 byte payload at 9600 baud
     static const int min_uart_buffer_size = 256;
     static const int header_size = 
         sizeof(R502_DataPkg_t) - sizeof(R502_DataPkg_t::data);

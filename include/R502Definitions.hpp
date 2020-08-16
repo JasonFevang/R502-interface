@@ -84,6 +84,26 @@ typedef enum {
     R502_err_comm_port = 0x1D,
 } R502_conf_code_t;
 
+/**
+ * \brief parameter numbers to identity which system parameter is being modified
+ */
+typedef enum {
+    R502_para_num_baud_control = 4,
+    R502_para_num_security_level = 5,
+    R502_para_num_data_pkg_len = 6,
+} R502_para_num;
+
+/**
+ * \brief Enum defining which parameter value maps to which baud rate
+ */
+typedef enum {
+    R502_baud_9600 = 1,
+    R502_baud_19200 = 2,
+    R502_baud_38400 = 4,
+    R502_baud_57600 = 6,
+    R502_baud_115200 = 12
+} R502_baud_t;
+
 ///// Return Data Structures /////
 
 /**
@@ -96,7 +116,7 @@ struct R502_sys_para_t {
     uint16_t security_level;
     uint8_t device_address[4];
     uint16_t data_packet_size;
-    uint16_t baud_setting;
+    R502_baud_t baud_setting;
 };
 
 ///// Command Packages /////
@@ -128,6 +148,16 @@ struct R502_VfyPwd_t {
 struct R502_SetPwd_t {
     uint8_t instr_code; //!< instruction code
     uint8_t password[4]; //!< User-provided password
+    uint8_t checksum[cs_len]; //!< checksum
+};
+
+/**
+ * \brief Data section of the SetSysPara command
+ */
+struct R502_SetSysPara_t {
+    uint8_t instr_code; //!< instruction code
+    uint8_t parameter_number; //!< Number to indicate which parameter to set
+    uint8_t contents; //!< value to set the parameter to
     uint8_t checksum[cs_len]; //!< checksum
 };
 
@@ -186,6 +216,7 @@ struct R502_DataPkg_t {
         R502_GeneralCommand_t general;
         R502_VfyPwd_t vfy_pwd;
         R502_SetPwd_t set_pwd;
+        R502_SetSysPara_t set_sys_para;
         R502_GeneralAck_t general_ack;
         R502_ReadSysParaAck_t read_sys_para_ack;
         R502_TemplateNumAck_t template_num_ack;
