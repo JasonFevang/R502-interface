@@ -222,6 +222,12 @@ esp_err_t R502Interface::set_baud_rate(R502_baud_t baud, R502_conf_code_t &res)
     return ESP_OK;
 }
 
+esp_err_t R502Interface::set_security_level(uint8_t security_level,
+    R502_conf_code_t &res)
+{
+    return set_sys_para(R502_para_num_security_level, security_level, res);
+}
+
 esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res, 
     R502_sys_para_t &sys_para)
 {

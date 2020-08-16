@@ -153,8 +153,47 @@ TEST_CASE("SetBaudRate", "[system command]")
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
 
+    // error baud rate
+    conf_code = R502_fail;
+    err = R502.set_baud_rate((R502_baud_t)9600, conf_code);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, err);
+    TEST_ASSERT_EQUAL(R502_fail, conf_code);
+
     // rest baud rate to what it was before testing
     err = R502.set_baud_rate(current_baud, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+}
+
+TEST_CASE("SetSecurityLevel", "[system command]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+
+    R502_conf_code_t conf_code = R502_fail;
+    int current_security_level = 0;
+    R502_sys_para_t sys_para;
+    err = R502.read_sys_para(conf_code, sys_para);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    current_security_level = sys_para.security_level;
+
+    for(int sec_lev = 1; sec_lev <= 5; sec_lev++){
+        err = R502.set_security_level(sec_lev, conf_code);
+        TEST_ESP_OK(err);
+        TEST_ASSERT_EQUAL(R502_ok, conf_code);
+        err = R502.read_sys_para(conf_code, sys_para);
+        TEST_ESP_OK(err);
+        TEST_ASSERT_EQUAL(R502_ok, conf_code);
+        TEST_ASSERT_EQUAL(sys_para.security_level, sec_lev);
+    }
+
+    conf_code = R502_fail;
+    err = R502.set_security_level(6, conf_code);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_ARG, err);
+    TEST_ASSERT_EQUAL(R502_fail, conf_code);
+
+    err = R502.set_security_level(current_security_level, conf_code);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
 }

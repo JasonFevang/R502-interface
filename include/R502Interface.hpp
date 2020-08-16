@@ -82,6 +82,14 @@ public:
      * \retval See vfy_pass for description of all possible return values
      */
     esp_err_t set_baud_rate(R502_baud_t baud, R502_conf_code_t &res);
+
+    /**
+     * \brief Set security level for fingerprint detection with R502 module
+     * \param security_level number from 1 to 5
+     * \param res OUT confirmation code provided by the R502
+     * \retval See vfy_pass for description of all possible return values
+     */
+    esp_err_t set_security_level(uint8_t security_level, R502_conf_code_t &res);
     
     /**
      * \brief Read system parameters
