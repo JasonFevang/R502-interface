@@ -104,6 +104,16 @@ typedef enum {
     R502_baud_115200 = 12
 } R502_baud_t;
 
+/**
+ * \brief Enum defining which parameter value maps to which data package length
+ */
+typedef enum {
+    R502_data_len_32 = 0,
+    R502_data_len_64 = 1,
+    R502_data_len_128 = 2,
+    R502_data_len_256 = 3,
+} R502_data_len_t;
+
 ///// Return Data Structures /////
 
 /**
@@ -115,7 +125,7 @@ struct R502_sys_para_t {
     uint16_t finger_library_size;
     uint16_t security_level;
     uint8_t device_address[4];
-    uint16_t data_packet_size;
+    R502_data_len_t data_package_length;
     R502_baud_t baud_setting;
 };
 

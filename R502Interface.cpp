@@ -209,23 +209,24 @@ esp_err_t R502Interface::set_baud_rate(R502_baud_t baud, R502_conf_code_t &res)
         ESP_LOGE(TAG, "error installing uart driver: %s",  
             esp_err_to_name(err));
     }
-    //err = deinit();
-    //if(err){
-        //ESP_LOGE(TAG, "set baud deinit() err %s", esp_err_to_name(err));
-        //return err;
-    //}
-    //err = init(uart_num, pin_txd, pin_rxd, pin_irq, cur_baud);
-    //if(err){
-        //ESP_LOGE(TAG, "set baud init() err %s", esp_err_to_name(err));
-        //return err;
-    //}
     return ESP_OK;
 }
 
 esp_err_t R502Interface::set_security_level(uint8_t security_level,
     R502_conf_code_t &res)
 {
-    return set_sys_para(R502_para_num_security_level, security_level, res);
+    esp_err_t err = set_sys_para(R502_para_num_security_level, 
+        security_level, res);
+    return err;
+}
+
+esp_err_t R502Interface::set_data_package_length(R502_data_len_t data_length,
+    R502_conf_code_t &res)
+{
+    ESP_LOGI(TAG, "data_length: %d", data_length);
+    esp_err_t err = set_sys_para(R502_para_num_data_pkg_len, data_length, res);
+    if(err) return err;
+    return ESP_OK;
 }
 
 esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res, 
@@ -259,7 +260,7 @@ esp_err_t R502Interface::read_sys_para(R502_conf_code_t &res,
     sys_para.finger_library_size = conv_8_to_16(receive_data->data + 4);
     sys_para.security_level = conv_8_to_16(receive_data->data + 6);
     memcpy(sys_para.device_address, receive_data->data+8, 4);
-    sys_para.data_packet_size = conv_8_to_16(receive_data->data + 12);
+    sys_para.data_package_length = (R502_data_len_t)conv_8_to_16(receive_data->data + 12);
     sys_para.baud_setting = (R502_baud_t)conv_8_to_16(receive_data->data + 14);
 
     return ESP_OK;
@@ -349,14 +350,14 @@ esp_err_t R502Interface::up_image(R502_conf_code_t &res){
     int bytes_received = 0;
     while(pid == R502_pid_data){
         err = receive_package(receive_pkg, 
-            data_package_length+cs_len+header_size);
+            cur_data_pkg_len+cs_len+header_size);
         if(err) return err;
-        bytes_received += data_package_length;
+        bytes_received += cur_data_pkg_len;
 
         pid = (R502_pid_t)receive_pkg.pid;
 
         // convert 4bit bytes to 8bit in an expanded buffer
-        for(int i = 0; i < data_package_length; i++){
+        for(int i = 0; i < cur_data_pkg_len; i++){
             // Low four bytes
             data_cb_buffer[i*2] = (rec_data[i] & 0xf) << 4;
             // High four bytes
@@ -364,7 +365,7 @@ esp_err_t R502Interface::up_image(R502_conf_code_t &res){
         }
 
         // call callback
-        up_image_cb(data_cb_buffer, data_package_length * 2);
+        up_image_cb(data_cb_buffer, cur_data_pkg_len * 2);
     }
     ESP_LOGI(TAG, "bytes received %d", bytes_received);
 
@@ -391,15 +392,15 @@ esp_err_t R502Interface::send_package(const R502_DataPkg_t &pkg)
         return ESP_ERR_INVALID_ARG;
     }
 
-    //printf("Send Data\n");
-    //int printed = 0;
-    //while(printed < pkg_len){
-        //for(int i = 0; i < 8 && printed < pkg_len; i++){
-            //printf("0x%02X ", *((uint8_t *)&pkg+printed));
-            //printed++;
-        //}
-        //printf("\n");
-    //}
+    printf("Send Data\n");
+    int printed = 0;
+    while(printed < pkg_len){
+        for(int i = 0; i < 8 && printed < pkg_len; i++){
+            printf("0x%02X ", *((uint8_t *)&pkg+printed));
+            printed++;
+        }
+        printf("\n");
+    }
 
     int len = uart_write_bytes(uart_num, (char *)&pkg, pkg_len);
     if(len == -1){
@@ -439,15 +440,15 @@ esp_err_t R502Interface::receive_package(const R502_DataPkg_t &rec_pkg,
         return ESP_ERR_INVALID_RESPONSE;
     }
 
-    //printf("response Data\n");
-    //int printed = 0;
-    //while(printed < len){
-        //for(int i = 0; i < 8 && printed < len; i++){
-            //printf("0x%02X ", *((uint8_t *)&rec_pkg+printed));
-            //printed++;
-        //}
-        //printf("\n");
-    //}
+    printf("response Data\n");
+    int printed = 0;
+    while(printed < len){
+        for(int i = 0; i < 8 && printed < len; i++){
+            printf("0x%02X ", *((uint8_t *)&rec_pkg+printed));
+            printed++;
+        }
+        printf("\n");
+    }
 
     // Verify response
     if(!verify_checksum(rec_pkg)){

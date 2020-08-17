@@ -92,6 +92,21 @@ public:
     esp_err_t set_security_level(uint8_t security_level, R502_conf_code_t &res);
     
     /**
+     * \brief Set data package length for transferring images with up_image and
+     * down_image 
+     * \param data_length length to set the R502 to communicate with
+     * \param res OUT confirmation code provided by the R502
+     * \retval See vfy_pass for description of all possible return values
+     * 
+     * \note Can only set data package length to 128 or 256. Setting to 64 or 32
+     * only sets the module to 128. This is contrary to the documentation, and
+     * perhaps this is an exception for only my module, so I've left the 32 and
+     * 64 byte options accessible
+     */
+    esp_err_t set_data_package_length(R502_data_len_t data_length,
+        R502_conf_code_t &res);
+
+    /**
      * \brief Read system parameters
      * \param res OUT confirmation code provided by the R502
      * \param sys_para OUT data structure to be filled with system parameters
@@ -223,8 +238,11 @@ private:
 
     // parameters
     uint8_t adder[4] = {0xFF, 0xFF, 0xFF, 0xFF};
+
+    // shouldn't need these here. Try not to store data members for parameters
     R502_baud_t cur_baud;
-    int data_package_length = 128;
+    int cur_data_pkg_len = 128;
+
     bool initialized = false;
     int interrupt = 0;
 

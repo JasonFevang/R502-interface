@@ -111,7 +111,7 @@ TEST_CASE("ReadSysPara", "[system command]")
     printf("device_address %x%x%x%x\n", sys_para.device_address[0], 
         sys_para.device_address[1], sys_para.device_address[2], 
         sys_para.device_address[3]);
-    printf("data_packet_size %d\n", sys_para.data_packet_size);
+    printf("data_package_length %d\n", sys_para.data_package_length);
     printf("baud_setting %d\n", sys_para.baud_setting);
 }
 
@@ -194,6 +194,52 @@ TEST_CASE("SetSecurityLevel", "[system command]")
     TEST_ASSERT_EQUAL(R502_fail, conf_code);
 
     err = R502.set_security_level(current_security_level, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+}
+
+TEST_CASE("SetDataPackageLength", "[system command]")
+{
+    // Can only set to 128 and 256 bytes, not 32 or 64
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+
+    R502_conf_code_t conf_code = R502_fail;
+    R502_data_len_t current_data_length = R502_data_len_32;
+    R502_sys_para_t sys_para;
+    err = R502.read_sys_para(conf_code, sys_para);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    current_data_length = sys_para.data_package_length;
+
+    err = R502.set_data_package_length(R502_data_len_64, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    err = R502.read_sys_para(conf_code, sys_para);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    // this should be 64bytes, but my module only goes down to 128
+    // Leaving assert in so if it changes with another module I will know
+    TEST_ASSERT_EQUAL(R502_data_len_128, sys_para.data_package_length);
+
+    err = R502.set_data_package_length(R502_data_len_256, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    err = R502.read_sys_para(conf_code, sys_para);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    TEST_ASSERT_EQUAL(R502_data_len_256, sys_para.data_package_length);
+
+    err = R502.set_data_package_length(R502_data_len_128, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    err = R502.read_sys_para(conf_code, sys_para);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    TEST_ASSERT_EQUAL(R502_data_len_128, sys_para.data_package_length);
+
+    // reset to starting data length
+    err = R502.set_data_package_length(current_data_length, conf_code);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
 }
