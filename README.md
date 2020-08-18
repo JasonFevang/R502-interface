@@ -29,3 +29,11 @@ Contact me over GitHub if you want to contribute to the project
 
 ## License
 MIT License
+
+## Possible Errors in R502 Documentation
+The offical documentation as of when this library was written in in the docs/ directory, these are the important errors
+
+"Data Package Length can be 32, 64, 128, 256 bytes"
+    Not true, through experimentation, can only be set to 128 or 256 bytes based on what is returned in ReadSysPara
+"Maximum value of the length paramter in a package is 256"
+    Not true, can be up to 258, including the checksum

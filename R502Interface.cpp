@@ -223,7 +223,6 @@ esp_err_t R502Interface::set_security_level(uint8_t security_level,
 esp_err_t R502Interface::set_data_package_length(R502_data_len_t data_length,
     R502_conf_code_t &res)
 {
-    ESP_LOGI(TAG, "data_length: %d", data_length);
     esp_err_t err = set_sys_para(R502_para_num_data_pkg_len, data_length, res);
     if(err) return err;
     return ESP_OK;
@@ -313,7 +312,9 @@ esp_err_t R502Interface::gen_image(R502_conf_code_t &res)
     return ESP_OK;
 }
 
-esp_err_t R502Interface::up_image(R502_conf_code_t &res){
+esp_err_t R502Interface::up_image(R502_data_len_t data_len, 
+    R502_conf_code_t &res)
+{
     R502_DataPkg_t pkg;
     R502_GeneralCommand_t *data = &pkg.data.general;
 
@@ -342,6 +343,24 @@ esp_err_t R502Interface::up_image(R502_conf_code_t &res){
         // The esp side of things is ok, but the module isn't ready to send
         return ESP_OK;
     }
+    int data_len_i = 0;
+    switch(data_len){
+        case R502_data_len_32:
+            data_len_i = 32;
+            break;
+        case R502_data_len_64:
+            data_len_i = 64;
+            break;
+        case R502_data_len_128:
+            data_len_i = 128;
+            break;
+        case R502_data_len_256:
+            data_len_i = 256;
+            break;
+        default:
+            ESP_LOGE(TAG, "invalid data length, use enum");
+            return ESP_ERR_INVALID_ARG;
+    }
 
     // receive data packages
     R502_pid_t pid = R502_pid_data;
@@ -350,14 +369,14 @@ esp_err_t R502Interface::up_image(R502_conf_code_t &res){
     int bytes_received = 0;
     while(pid == R502_pid_data){
         err = receive_package(receive_pkg, 
-            cur_data_pkg_len+cs_len+header_size);
+            data_len_i+cs_len+header_size);
         if(err) return err;
-        bytes_received += cur_data_pkg_len;
+        bytes_received += data_len_i;
 
         pid = (R502_pid_t)receive_pkg.pid;
 
         // convert 4bit bytes to 8bit in an expanded buffer
-        for(int i = 0; i < cur_data_pkg_len; i++){
+        for(int i = 0; i < data_len_i; i++){
             // Low four bytes
             data_cb_buffer[i*2] = (rec_data[i] & 0xf) << 4;
             // High four bytes
@@ -365,7 +384,7 @@ esp_err_t R502Interface::up_image(R502_conf_code_t &res){
         }
 
         // call callback
-        up_image_cb(data_cb_buffer, cur_data_pkg_len * 2);
+        up_image_cb(data_cb_buffer, data_len_i * 2);
     }
     ESP_LOGI(TAG, "bytes received %d", bytes_received);
 
@@ -392,15 +411,15 @@ esp_err_t R502Interface::send_package(const R502_DataPkg_t &pkg)
         return ESP_ERR_INVALID_ARG;
     }
 
-    printf("Send Data\n");
-    int printed = 0;
-    while(printed < pkg_len){
-        for(int i = 0; i < 8 && printed < pkg_len; i++){
-            printf("0x%02X ", *((uint8_t *)&pkg+printed));
-            printed++;
-        }
-        printf("\n");
-    }
+    //printf("Send Data\n");
+    //int printed = 0;
+    //while(printed < pkg_len){
+        //for(int i = 0; i < 8 && printed < pkg_len; i++){
+            //printf("0x%02X ", *((uint8_t *)&pkg+printed));
+            //printed++;
+        //}
+        //printf("\n");
+    //}
 
     int len = uart_write_bytes(uart_num, (char *)&pkg, pkg_len);
     if(len == -1){
@@ -440,15 +459,15 @@ esp_err_t R502Interface::receive_package(const R502_DataPkg_t &rec_pkg,
         return ESP_ERR_INVALID_RESPONSE;
     }
 
-    printf("response Data\n");
-    int printed = 0;
-    while(printed < len){
-        for(int i = 0; i < 8 && printed < len; i++){
-            printf("0x%02X ", *((uint8_t *)&rec_pkg+printed));
-            printed++;
-        }
-        printf("\n");
-    }
+//    printf("response Data\n");
+    //int printed = 0;
+    //while(printed < len){
+        //for(int i = 0; i < 8 && printed < len; i++){
+            //printf("0x%02X ", *((uint8_t *)&rec_pkg+printed));
+            //printed++;
+        //}
+        //printf("\n");
+    //}
 
     // Verify response
     if(!verify_checksum(rec_pkg)){

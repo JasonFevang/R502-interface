@@ -133,10 +133,13 @@ public:
 
     /**
      * \brief Upload the image in img_buffer to upper computer
+     * \param data_len The configured data_package_length of the module, so
+     * the data receiver knows how long each data package will be. Query the 
+     * data package length of the module using read_sys_para()
      * \param res OUT confirmation code
      * \retval See vfy_pass for description of all possible return values
      */
-    esp_err_t up_image(R502_conf_code_t &res);
+    esp_err_t up_image(R502_data_len_t data_len, R502_conf_code_t &res);
 
 private:
     static const char *TAG;

@@ -29,12 +29,12 @@ void wait_with_message(char *message){
     uart_rx_one_char_block();
 }
 
-static int up_image_data_len = 0;
+static int up_image_size = 0;
 void up_image_callback(std::array<uint8_t, max_data_len * 2> &data, 
     int data_len)
 {
     // this is where you would store or otherwise do something with the image
-    up_image_data_len += data_len;
+    up_image_size += data_len;
 
     //int box_width = 16;
     //int total = 0;
@@ -282,14 +282,80 @@ TEST_CASE("UpImage", "[fingerprint processing command]")
 {
     esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
     TEST_ESP_OK(err);
-    R502_conf_code_t conf_code;
 
-    err = R502.up_image(conf_code);
-    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, err);
-    up_image_data_len = 0;
-    R502.set_up_image_cb(up_image_callback);
-    err = R502.up_image(conf_code);
+    // read and save current data_package_length and baud rate
+    R502_sys_para_t sys_para;
+    R502_conf_code_t conf_code;
+    err = R502.read_sys_para(conf_code, sys_para);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
-    TEST_ASSERT_EQUAL(image_size, up_image_data_len);
+    R502_data_len_t starting_data_len = sys_para.data_package_length;
+
+    // Attempt up_image without setting the callback
+    err = R502.up_image(starting_data_len, conf_code);
+    TEST_ASSERT_EQUAL(ESP_ERR_INVALID_STATE, err);
+
+    // reset counter to measure size of the uploaded image
+    R502.set_up_image_cb(up_image_callback);
+
+    up_image_size = 0;
+
+    err = R502.up_image(starting_data_len, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    TEST_ASSERT_EQUAL(image_size, up_image_size);
+}
+
+TEST_CASE("UpImageAdvanced", "[fingerprint processing command]")
+{
+    esp_err_t err = R502.init(UART_NUM_1, PIN_TXD, PIN_RXD, PIN_IRQ);
+    TEST_ESP_OK(err);
+    R502.set_up_image_cb(up_image_callback);
+
+    // read and save current data_package_length and baud rate
+    R502_sys_para_t sys_para;
+    R502_conf_code_t conf_code;
+    err = R502.read_sys_para(conf_code, sys_para);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    R502_data_len_t starting_data_len = sys_para.data_package_length;
+    R502_baud_t starting_baud = sys_para.baud_setting;
+
+    
+    R502_baud_t test_bauds[5] = { R502_baud_9600, R502_baud_19200, 
+        R502_baud_38400, R502_baud_57600, R502_baud_115200 };
+    R502_data_len_t test_data_lens[2] = { R502_data_len_128, 
+        R502_data_len_256 };
+
+    // Loop through all bauds and data lengths to test all combinations
+    for(int baud_i = 0; baud_i < 5; baud_i++){
+        ESP_LOGI(TAG, "Test baud %d", test_bauds[baud_i]);
+        err = R502.set_baud_rate(test_bauds[baud_i], conf_code);
+        TEST_ESP_OK(err);
+        TEST_ASSERT_EQUAL(R502_ok, conf_code);
+
+        for(int data_i = 0; data_i < 2; data_i++){
+            ESP_LOGI(TAG, "Test data len %d", test_data_lens[data_i]);
+            // reset counter to measure size of the uploaded image
+            up_image_size = 0;
+
+            err = R502.set_data_package_length(test_data_lens[data_i], 
+                conf_code);
+            TEST_ESP_OK(err);
+            TEST_ASSERT_EQUAL(R502_ok, conf_code);
+
+            err = R502.up_image(test_data_lens[data_i], conf_code);
+            TEST_ESP_OK(err);
+            TEST_ASSERT_EQUAL(R502_ok, conf_code);
+            TEST_ASSERT_EQUAL(image_size, up_image_size);
+        }
+    }
+
+    // reset the data package length and baud settings to default
+    err = R502.set_data_package_length(starting_data_len, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
+    err = R502.set_baud_rate(starting_baud, conf_code);
+    TEST_ESP_OK(err);
+    TEST_ASSERT_EQUAL(R502_ok, conf_code);
 }
