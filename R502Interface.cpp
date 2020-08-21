@@ -364,12 +364,12 @@ esp_err_t R502Interface::up_image(R502_data_len_t data_len,
 
     // receive data packages
     R502_pid_t pid = R502_pid_data;
-    std::array<uint8_t, max_data_len * 2> data_cb_buffer;
+    std::array<uint8_t, R502_max_data_len * 2> data_cb_buffer;
     uint8_t *rec_data = receive_pkg.data.data.content;
     int bytes_received = 0;
     while(pid == R502_pid_data){
         err = receive_package(receive_pkg, 
-            data_len_i+cs_len+header_size);
+            data_len_i+R502_cs_len+header_size);
         if(err) return err;
         bytes_received += data_len_i;
 

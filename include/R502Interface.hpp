@@ -29,7 +29,7 @@
  */
 class R502Interface {
 public:
-    typedef std::function<void(std::array<uint8_t, max_data_len * 2> &data, 
+    typedef std::function<void(std::array<uint8_t, R502_max_data_len * 2> &data, 
         int data_len)> up_image_cb_t;
 
     /**

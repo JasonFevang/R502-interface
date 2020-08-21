@@ -8,10 +8,10 @@
 #include <stdint.h>
 
 /// Constants ///
-static const int character_file_size = 384; // bytes
-static const int image_size = 36 * 1024; // Why isn't this 72 according to docs?
-static const int cs_len = 2;
-static const int max_data_len = 256;
+static const int R502_character_file_size = 384; // bytes
+static const int R502_image_size = 36 * 1024; // Why isn't this 72 according to docs?
+static const int R502_cs_len = 2;
+static const int R502_max_data_len = 256;
 
 /**
  * \brief Package identifiers
@@ -140,7 +140,7 @@ struct R502_sys_para_t {
  */
 struct R502_GeneralCommand_t {
     uint8_t instr_code; //!< instruction code
-    uint8_t checksum[cs_len]; //!< checksum
+    uint8_t checksum[R502_cs_len]; //!< checksum
 };
 
 /**
@@ -149,7 +149,7 @@ struct R502_GeneralCommand_t {
 struct R502_VfyPwd_t {
     uint8_t instr_code; //!< instruction code
     uint8_t password[4]; //!< User-provided password
-    uint8_t checksum[cs_len]; //!< checksum
+    uint8_t checksum[R502_cs_len]; //!< checksum
 };
 
 /**
@@ -158,7 +158,7 @@ struct R502_VfyPwd_t {
 struct R502_SetPwd_t {
     uint8_t instr_code; //!< instruction code
     uint8_t password[4]; //!< User-provided password
-    uint8_t checksum[cs_len]; //!< checksum
+    uint8_t checksum[R502_cs_len]; //!< checksum
 };
 
 /**
@@ -168,7 +168,7 @@ struct R502_SetSysPara_t {
     uint8_t instr_code; //!< instruction code
     uint8_t parameter_number; //!< Number to indicate which parameter to set
     uint8_t contents; //!< value to set the parameter to
-    uint8_t checksum[cs_len]; //!< checksum
+    uint8_t checksum[R502_cs_len]; //!< checksum
 };
 
 ///// Acknowledgement Packages /////
@@ -180,7 +180,7 @@ struct R502_SetSysPara_t {
  */
 struct R502_GeneralAck_t {
     uint8_t conf_code; //!< confirmation code
-    uint8_t checksum[cs_len]; //!< checksum
+    uint8_t checksum[R502_cs_len]; //!< checksum
 };
 
 /**
@@ -189,7 +189,7 @@ struct R502_GeneralAck_t {
 struct R502_ReadSysParaAck_t {
     uint8_t conf_code; //!< confirmation code
     uint8_t data[16]; //!< Data section containing all system parameters
-    uint8_t checksum[cs_len]; //!< checksum
+    uint8_t checksum[R502_cs_len]; //!< checksum
 };
 
 
@@ -199,7 +199,7 @@ struct R502_ReadSysParaAck_t {
 struct R502_TemplateNumAck_t {
     uint8_t conf_code; //!< confirmation code
     uint8_t template_num[2]; //!< Data section containing all system parameters
-    uint8_t checksum[cs_len]; //!< checksum
+    uint8_t checksum[R502_cs_len]; //!< checksum
 };
 
 ///// Data Packages /////
@@ -208,8 +208,8 @@ struct R502_TemplateNumAck_t {
  * \brief Data section of a data package with 256 bytes of data
  */
 struct R502_Data_t {
-    uint8_t content[max_data_len];
-    uint8_t checksum[cs_len]; //!< checksum
+    uint8_t content[R502_max_data_len];
+    uint8_t checksum[R502_cs_len]; //!< checksum
 };
 
 

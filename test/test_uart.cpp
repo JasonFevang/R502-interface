@@ -30,7 +30,7 @@ void wait_with_message(char *message){
 }
 
 static int up_image_size = 0;
-void up_image_callback(std::array<uint8_t, max_data_len * 2> &data, 
+void up_image_callback(std::array<uint8_t, R502_max_data_len * 2> &data, 
     int data_len)
 {
     // this is where you would store or otherwise do something with the image
@@ -303,7 +303,7 @@ TEST_CASE("UpImage", "[fingerprint processing command]")
     err = R502.up_image(starting_data_len, conf_code);
     TEST_ESP_OK(err);
     TEST_ASSERT_EQUAL(R502_ok, conf_code);
-    TEST_ASSERT_EQUAL(image_size, up_image_size);
+    TEST_ASSERT_EQUAL(R502_image_size, up_image_size);
 }
 
 TEST_CASE("UpImageAdvanced", "[fingerprint processing command]")
@@ -347,7 +347,7 @@ TEST_CASE("UpImageAdvanced", "[fingerprint processing command]")
             err = R502.up_image(test_data_lens[data_i], conf_code);
             TEST_ESP_OK(err);
             TEST_ASSERT_EQUAL(R502_ok, conf_code);
-            TEST_ASSERT_EQUAL(image_size, up_image_size);
+            TEST_ASSERT_EQUAL(R502_image_size, up_image_size);
         }
     }
 
